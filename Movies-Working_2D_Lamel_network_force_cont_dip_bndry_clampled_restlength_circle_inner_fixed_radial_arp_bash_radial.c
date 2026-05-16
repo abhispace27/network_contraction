@@ -1,39 +1,9 @@
-// this code does not perturb the dipoles to produce forces.
-// instead, we just apply a force term to the hamiltonian and,
+// Conjugate gradient to relax an elastic network
+// **********************************************
+// this code applies a restlength change in bonds
+// near the force dipole and then we
 // let the energy minimizer do its magic.
-
-//**** THIS IS THE MAIN CODE ******
-// that generates simulation results for boundary forces with clamped boundaries.
-// Although, this does not have buckling.
-// this is the main code for the second project.
-
-// May 29: this is the smae as Movies...inner_fixed_radial.c but it has arp bonds activated
-// to prevent node crossings and bond overlaps
-
-// Sep 12: this is the same as Movies..._compare_patrick.c
-// but instead of applying forces, we will move the nodes 
-// to exactly how much Patrick's nodes move.
-
-// July 21, 2023
-// this code cannot handle overlap between isotropic dipoles.
-
-// Apr 5, 2023
-// this code is similar to Movies...diff_mu_bndry_clamped_top_bot.c
-// but we connect the boundary nodes with each other so that boundary nodes
-// do not get left behind when the network contracts
-
-// Mar 28, 2023
-// this code is similar to Movies...diff_mu.c
-// but we connect the boundary nodes with each other so that boundary nodes
-// do not get left behind when the network contracts
-
-// this code is the same as "Movies...contraction_point.c" but it differs slightly. 
-// Here we make sure that compressive and stretching coefficients are different
-
-// This code is similar to Movies...contraction_network.c but there are some changes:
-// Instead of force dipoles, we will use monopoles that are nodes in the lattice that pull 
-// on all bonds that go out of them - isotropic contraction at random points in the network.
-// first we will test if we can make the dipole array dynamic and if the input of location of dipole can be read from an input file
+// **********************************************
 
 #include <stdio.h>
 #include <math.h>
@@ -55,25 +25,11 @@
 
 //*************************************************
 //************** Lattice parameters ***************
-//#define L 16		//L CAN ONLY BE EVEN THE SUBROUTINES WILL NOT WORK OTHERWISE
-// #define L 64		//L CAN ONLY BE EVEN THE SUBROUTINES WILL NOT WORK OTHERWISE
-//#define L 65		//L CAN ONLY BE EVEN THE SUBROUTINES WILL NOT WORK OTHERWISE
-//#define L 96		//L CAN ONLY BE EVEN THE SUBROUTINES WILL NOT WORK OTHERWISE
-#define L 128		//L CAN ONLY BE EVEN THE SUBROUTINES WILL NOT WORK OTHERWISE
+#define L 64		//L CAN ONLY BE EVEN THE SUBROUTINES WILL NOT WORK OTHERWISE
 #define N (L*L)
 #define mu 1.0	//This control the spring between n.n
-//#define mu 1.0	//This control the spring between n.n   // this is the stetching mu
-
-//#define mu_c 0.05                                        // this is the compressive mu
-//#define mu_c 0.1                                         // this is the compressive mu
-//#define mu_c 0.15                                        // this is the compressive mu
-//#define mu_c 0.2                                         // this is the compressive mu
-//#define mu_c 0.3                                         // this is the compressive mu
-//#define mu_c 0.5                                         // this is the compressive mu
 
 //#define mu_c 1.0                                           // this is the compressive mu
-
-//#define mu 0.12	//This control the spring between n.n
 
 //#define kappa1 1.0e-6	//This controls the ARP spring
 //#define kappa1 0.0	//This controls the ARP spring
@@ -81,38 +37,13 @@
 #define arp_lim M_PI/180.0  // this is the limit after which ar is activated
 
 //#define kappa2 1.0e-6	//This controls the filament bending.
-//#define kappa2 2.0e-6	//This controls the filament bending.
-//#define kappa2 5.0e-6	//This controls the filament bending.
-//#define kappa2 2.0e-7	//This controls the filament bending.
-//#define kappa2 5.0e-7	//This controls the filament bending.
-//#define kappa2 1.0e-7	//This controls the filament bending.
-//#define kappa2 4.0e-7	//This controls the filament bending.
-
-//#define kappa2 1.0e-6	//This controls the filament bending.
-//#define kappa2 5.0e-6	//This controls the filament bending.
-//#define kappa2 1.0e-5	//This controls the filament bending.
-//#define kappa2 2.0e-5	//This controls the filament bending.
-//#define kappa2 5.0e-5	//This controls the filament bending.
-//#define kappa2 1.0e-4	//This controls the filament bending.
-
-//#define kappa2 8.0e-5	//This controls the filament bending.
-//#define kappa2 1.0e-4	//This controls the filament bending.
-//#define kappa2 2.0e-4	//This controls the filament bending.
-//#define kappa2 5.0e-4	//This controls the filament bending.
-//#define kappa2 1.0e-3	//This controls the filament bending.
-//#define kappa2 2.0e-3	//This controls the filament bending.
-//#define kappa2 5.0e-3	//This controls the filament bending.
-//#define kappa2 1.0e-2	//This controls the filament bending.
-
 //#define kappa2 0.0	//This controls the filament bending.
 
 #define THETA M_PI*(60.0/180.0)	//Define the Arp 2/3 angular bond interaction rest position for a perfect lattice.
 //#define PBOND 0.64
 //#define PBOND 0.61
 
-//#define PARP 0.15
 #define PARP 1.0     // probablity of arp springs
-//#define PERT 0.0027
 #define PERT 0.01
 #define PERT1 0
 
@@ -121,20 +52,12 @@
 //*************************************************
 //************* Subroutine Parameters *************
 #define NRANSI
-//#define TOL 2.0e-5	//This sets the tolerance for finding the minimum
-//#define TOL 2.0e-6	//This sets the tolerance for finding the minimum
-//#define TOL 1.0e-6	//This sets the tolerance for finding the minimum
 #define TOL 1.0e-7	//This sets the tolerance for finding the minimum
-//#define TOL 1.0e-8	//This sets the tolerance for finding the minimum
-//#define TOL 2.0e-12	//This sets the tolerance for finding the minimum
 
 //#define DSTEP 1.0e-6	//This sets the episilon in the derivative
 
 #define ITMAXX 1000000	//Conj. Grad. Max Iterations 
 #define ITMAX 1000000	//dbrent Max iterations
-
-//#define ITMAXX 2	//Conj. Grad. Max Iterations 
-//#define ITMAX 2	//dbrent Max iterations
 
 #define EPS 1.0e-10
 #define ZEPS 1.0e-10
@@ -148,226 +71,10 @@
 // new vriables defined by abhinav feb 20
 #define ext_flag 0 	// entensile flag: 1= extensile dipoles; 0= contractile dipoles 
 
-#define i_p 2041  // point of interest whose positions will be printed out
-
-
-//#define move1 2016  // points to be moved
-//#define move2 2017  // points to be moved
-
-//#define move1 3680
-
-//#define move1 2720  // points to be moved
-//#define move2 2657  // points to be moved
-
-//#define move1 1760  // points to be moved; for dipole along y
-//#define move2 2016  // points to be moved; for dipole along y 4 rows apart
-
-// 2144 for only y forces
-// 2209 for angled foce between x and y axis. angle at 60 degrees with x axis
-
-#define line_unit 8
-#define node_dist 4
-
-//# blue fc: 2849, 2850, 2860,2861, 2758,2759,2760, 2788, 2790, 2791, 2792, 2720, 2721,2722,2723,2724, 2728,2729, 2741,2742
-//# red fc: 2754, 2755, 2756, 2757, 2800, 2801, 2793, 2794, 2807, 2808, 2809, 2816, 2817, 2818, 2821, 
-//([[2400,2404],[2656,2660],[2912,2916],[3168,3172],[3424,3428],[3680,3684]])  # for mu = 1, kappa = e-1, frce = 0.04
-
-
-//#define move1 3680  			// single dipole extra dipole
-//#define move1 2016  			// single dipole main dipole
-#define move1 1987  			// single dipole main dipole
-//#define move1 2014  			// single dipole main dipole
-//#define move1 (2016+8-2*64)  			// points to be moved on a line of dipoles
-#define move2 (move1+node_dist)
-//#define move1 2806  			// points to be moved on a line of dipoles
-//#define move2 
-//#define move2 move1+node_dist  // points to be moved on a line of dipoles
-//#define move1 (2016+8-2*64)  			// perp dipoel on x aixs
-//#define move1 (2018+20*L)  			// perp dipole on y axis
-//#define move2 (move1+4*L)
-
-//#define move3 (move1+line_unit)
-//#define move4 move3+node_dist
-
-//#define move5 move3+line_unit
-//#define move6 move5+node_dist
-
-#define move3 move1+line_unit
-#define move4 move3+node_dist
-
-#define move5 move3+line_unit
-#define move6 move5+node_dist
-
-#define move7 move5+line_unit			  // points to be moved
-#define move8 move7+node_dist  		 // points to be moved
-//#define move2 2020  					// points to be moved
-
-#define move9 move7+line_unit
-#define move10 move9+node_dist
-
-#define move11 move9+line_unit
-#define move12 move11+node_dist
-
-#define move13 move11+line_unit
-#define move14 move13+node_dist
-
-#define move15 move13+line_unit
-#define move16 move15+node_dist
-
-#define move17 move1+(2*L)			  // points to be moved
-#define move18 move17+node_dist  		 // points to be moved
-//#define move2 2020  					// points to be moved
-
-#define move19 move17+line_unit
-#define move20 move19+node_dist
-
-#define move21 move19+line_unit
-#define move22 move21+node_dist
-
-#define move23 move21+line_unit
-#define move24 move23+node_dist
-
-#define move25 move23+line_unit
-#define move26 move25+node_dist
-
-#define move27 move25+line_unit			  // points to be moved
-#define move28 move27+node_dist  		 // points to be moved
-//#define move2 2020  					// points to be moved
-
-#define move29 move27+line_unit
-#define move30 move29+node_dist
-
-#define move31 move29+line_unit
-#define move32 move31+node_dist
-
-
-// for 8 dipoles in a line, last dipole is move15 and move16
-
-//#define move17 2438
-//#define move18 2441
-
-#define extra_dip 0
-#define move_1 2031	    // position of right dipole on x axis for orientation and cluster studies 
-//#define move_1 2656      // position of right dipole on y axis for orientation and cluster studies 
-#define move_2 move_1+node_dist
-//#define move_1 (2016+8-2*64)  		// perp dip on x aixs
-//#define move_2 (move_1+4*L)			// perp dip on x axis
-//#define move_1 (2018+20*L)  			// perp dipole on y axis
-//#define move_2 (move_1+4*L)			// perp dip on y axis
-
-//([[2400,2404],[2656,2660],[2912,2916],[3168,3172],[3424,3428],[3680,3684]])  # for mu = 1, kappa = e-1, frce = 0.04
-
-//# blue fc: 2849, 2850, 2860,2861, 2758,2759,2760, 2788, 2790, 2791, 2792, 2720, 2721,2722,2723,2724, 2728,2729, 2741,2742
-//# red fc: 2754, 2755, 2756, 2757, 2800, 2801, 2793, 2794, 2807, 2808, 2809, 2816, 2817, 2818, 2821, 
-
-
-//#define move_1 2528
-//#define move_2 2531
-//#define move_1 1902
-//#define move_2 2158
-
-// flags to switch between david's lattice perturbation for global shear and abhinav's lattice perturbation for local pinch
-#define method 1	// 0: david's global shear; 1: local pinch  this is now deprecated. should probably remove
-
-//int dip_pt[2*num_dip] = {3910, 3914};
-
-#define line_dip 1  // for a single dipole it is 1; 8 for a line of dipoles
-
-//#define num_dip (line_dip+extra_dip)	// number of dipoles = half of number of points to be moved
-//#define num_dip 1         // for single dipole
-
-#define unit_dip line_unit
-//#define dist_node (move2-move1)
-#define first_dip move1
-#define row_dip 31
-//#define num_node 2*num_dip
-
-#define line_node 2*line_dip
-
-//#define force_val ((0.04))    // for 10 steps with mu 1.0
-//#define force_val ((0.04/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.04/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.04/10))    // for 100 steps with mu 1.0
-
-
-//#define force_val ((0.008))    // for 10 steps with mu 1.0
-//#define force_val ((0.008/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.008/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.008/10))    // for 100 steps with mu 1.0
-
-//#define force_val ((0.001))    // for 10 steps with mu 1.0
-//#define force_val ((0.001/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.001/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.001/10))    // for 100 steps with mu 1.0
-
-//#define force_val ((0.016))    // for 10 steps with mu 1.0
-//#define force_val ((0.016/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.016/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.016/10))    // for 100 steps with mu 1.0
-
-//#define force_val ((0.2))    // for 10 steps with mu 1.0
-//#define force_val ((0.2/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.2/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.2/10))    // for 100 steps with mu 1.0
-
-// for single isotropic dipole
-#define force_val ((0.1))    // for 10 steps with mu 1.0
-//#define force_val ((0.1/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.1/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.1/10))    // for 100 steps with mu 1.0
-
-//#define force_val ((0.04))    // for 10 steps with mu 1.0
-//#define force_val ((0.04/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.04/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.04/10))    // for 100 steps with mu 1.0
-
-
-//#define force_val ((0.02))    // for 10 steps with mu 1.0
-//#define force_val ((0.02/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.02/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.02/10))    // for 100 steps with mu 1.0
-
-//#define force_val ((0.01))    // for 10 steps with mu 1.0
-//#define force_val ((0.01/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.01/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.01/10))    // for 100 steps with mu 1.0
-
-// for 25 dipoles, p = 0.55 and mu_c = 0.5
-//#define force_val ((0.008))    // for 10 steps with mu 1.0
-//#define force_val ((0.008/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.008/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.008/10))    // for 100 steps with mu 1.0
-
-//#define force_val ((0.004))    // for 10 steps with mu 1.0
-//#define force_val ((0.004/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.004/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.004/10))    // for 100 steps with mu 1.0
-
-//#define force_val ((0.002))    // for 10 steps with mu 1.0
-//#define force_val ((0.002/2))    // for 20 steps with mu 1.0
-//#define force_val ((0.002/5))    // for 50 steps with mu 1.0
-//#define force_val ((0.002/10))    // for 100 steps with mu 1.0
-
-//#define force_val ((0.01))    // for 10 steps with mu 1.0
-//#define force_val ((0.01/2))    // for 10 steps with mu 1.0
-//#define force_val ((0.01/5))    // for 10 steps with mu 1.0
-//#define force_val ((0.01/10))    // for 10 steps with mu 1.0
-
-#define force_val2 (0.00650/sqrt(19))    // force on the extra dipole: different from that on the central/line of dipole
-
-//#define force_val (0.00325)    // force applied - for distance 3 between nodes; dipoles along x axis
-//#define force_val (0.011)    // force applied - for distance 4 between nodes; dipoles along y axis
-
 //double Ff[num_node];   // stores the value of forces
 // dist_val is the distance between nodes of a dipole
 // xcomp and ycomp are the factors that determine dipole force components 
 double dist_val, xdist_val, ydist_val, xcomp, ycomp;
-double dist_node = move2-move1;
-//double force_dist = move2-move1+1.0;
-
-//#define num_node 2*num_dip   // for no extra dipole
-
-//int dip_node[num_node];  // dont know why but 2*9 is 17
 
 // dynamic array initiation:
 int* dip_node=NULL; 
@@ -397,15 +104,6 @@ double brakbx=2.0*PERT,brakax=0.0;      // do not change unless really needed
 //double brakbx=100.0,brakax=0.0;    // edit by abhinav; trying different values
 
 int func_flag = 0;
-int hyst_flag = 0; // flag for checking hysterisis
-int line_flag = 0;  // flag when zero: all system has same pbond; when one: line of nodes has pbond 1
-
-// following areas have pbond == 1 for a line of dipole case
-int line_min = 29; // since the line of dipoles is at 31st line
-//int line_max = 33;
-int line_max = 35;
-//int line_min = 31; // since the line of dipoles is at 31st line
-//int line_max = 31;
 
 
 int en_flag = 0;  // used to store energy values from conjugate method so that i can generate animation
@@ -451,11 +149,7 @@ int srand_arg;
 //int diff_network1 = 111111;   // using the same variables as for changing dipole locations because the folders are already created
 
 //int diff_network2 = 111111;
-//int diff_network2 = 222222;
-//int diff_network2 = 333333;
-//int diff_network2 = 444444;
-//int diff_network2 = 555555;
-//int diff_network2 = 666666;
+
 
 //****************************************************************
 //******************** FOR BASH SCRIPT ***************************
@@ -469,3780 +163,643 @@ int diff_network1, diff_network2;
 // test for writing the forces to file
 double FILAx[N*3],FILAy[N*3];
 
+
 //****************************************************************
 //********************OUTPUT FILES BELOW**************************
+//****************************************************************
+//
+// Main idea:
+// 1. make_output_filename() builds the full filename.
+// 2. open_output_file() safely opens the file.
+// 3. Each output_* function only writes its own data.
+//
+//****************************************************************
+
+#define OUT_ROOT "lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial"
+#define FILENAME_SIZE 1000
+
+// Example:
+// 1.0e-6  -> e-6
+// 2.0e-6  -> 2e-6
+// 5.0e-7  -> 5e-7
+// 0       -> 0
+//
+void format_kappa2_folder(double val, char *buf, size_t n)
+{
+    if (val == 0.0) {
+        snprintf(buf, n, "0");
+    }
+    else if (val == 1.0e-7) {
+        snprintf(buf, n, "e-7");
+    }
+    else if (val == 1.0e-6) {
+        snprintf(buf, n, "e-6");
+    }
+    else if (val == 1.0e-5) {
+        snprintf(buf, n, "e-5");
+    }
+    else if (val == 1.0e-4) {
+        snprintf(buf, n, "e-4");
+    }
+    else if (val == 1.0e-3) {
+        snprintf(buf, n, "e-3");
+
+    else if (val == 1.0e-2) {
+        snprintf(buf, n, "e-2");
+    }
+    else {
+        snprintf(buf, n, "%.0e", val);
+    }
+}
+
+// Adds L prefix used by some old filenames.
+void format_L_prefix(char *buf, size_t n)
+{
+    if (L == 96) {
+        snprintf(buf, n, "96_");
+    }
+    else if (L == 128) {
+        snprintf(buf, n, "128_");
+    }
+    else {
+        snprintf(buf, n, "");
+    }
+}
+
+
+// Build the folder before the actual filename.
+//
+// For PBOND == 1:
+// OUT_ROOT/subdir/
+//
+// For PBOND < 1:
+// OUT_ROOT/kappa2_x/ranseed1,ranseed2/srand_arg/diff_network1,diff_network2/subdir/
+
+void make_output_dir(char *dir, size_t n, const char *subdir)
+{
+    char kappa_txt[64];
+
+    if (PBOND == 1.0) {
+        snprintf(dir, n, "%s/%s", OUT_ROOT, subdir);
+    }
+    else {
+        format_kappa2_folder(kappa2, kappa_txt, sizeof(kappa_txt));
+
+        snprintf(dir, n,
+                 "%s/kappa2_%s/%ld,%ld/%d/%d,%d/%s",
+                 OUT_ROOT,
+                 kappa_txt,
+                 ranseed1, ranseed2,
+                 srand_arg,
+                 diff_network1, diff_network2,
+                 subdir);
+    }
+}
+
+
+// Builds the common parameter part of the filename.
+void make_common_suffix(char *suffix, size_t n, int counter, int use_counter)
+{
+    char L_txt[32];
+
+    format_L_prefix(L_txt, sizeof(L_txt));
+
+    if (use_counter) {
+        snprintf(suffix, n,
+                 "%s%d_%d_%0.2f_%0.2e_%0.2e__%0.4f_%0.4f_%0.4f_%d_%d",
+                 L_txt,
+                 num_center,
+                 num_dip,
+                 PBOND,
+                 TOL,
+                 kappa2,
+                 rlen_max,
+                 mu,
+                 mu_c,
+                 counter,
+                 times);
+    }
+    else {
+        snprintf(suffix, n,
+                 "%s%d_%d_%0.2f_%0.2e_%0.2e__%0.4f_%0.4f_%0.4f_%d",
+                 L_txt,
+                 num_center,
+                 num_dip,
+                 PBOND,
+                 TOL,
+                 kappa2,
+                 rlen_max,
+                 mu,
+                 mu_c,
+                 times);
+    }
+}
+
+
+// General filename builder.
+void make_output_filename(
+    char *filename,
+    size_t n,
+    const char *subdir,
+    const char *prefix,
+    int counter,
+    int use_counter,
+    const char *extension
+)
+{
+    char dir[FILENAME_SIZE];
+    char suffix[FILENAME_SIZE];
+
+    make_output_dir(dir, sizeof(dir), subdir);
+    make_common_suffix(suffix, sizeof(suffix), counter, use_counter);
+
+    snprintf(filename, n, "%s/%s%s%s", dir, prefix, suffix, extension);
+}
+
+
+// Special filename builder for node energy.
+void make_energy_node_filename(char *filename, size_t n, int counter)
+{
+    char dir[FILENAME_SIZE];
+    char suffix[FILENAME_SIZE];
+    char L_txt[32];
+
+    format_L_prefix(L_txt, sizeof(L_txt));
+
+    if (PBOND == 1.0) {
+        snprintf(dir, sizeof(dir), "%s/energy/node", OUT_ROOT);
+
+        snprintf(suffix, sizeof(suffix),
+                 "%ssrand_%d_%d_%d_%0.2f_%0.2e_%0.2e_%0.4f_%0.4f_%0.4f_%d_%d",
+                 L_txt,
+                 srand_arg,
+                 num_center,
+                 num_dip,
+                 PBOND,
+                 TOL,
+                 kappa2,
+                 rlen_max,
+                 mu,
+                 mu_c,
+                 counter,
+                 times);
+
+        snprintf(filename, n, "%s/Lattice_node_%s_force.txt", dir, suffix);
+    }
+    else {
+        make_output_filename(filename, n,
+                             "energy/node",
+                             "Lattice_node_",
+                             counter,
+                             1,
+                             "_force.txt");
+    }
+}
+
+
+// Safe fopen check.
+FILE *open_output_file(const char *filename, const char *mode)
+{
+    FILE *fout = fopen(filename, mode);
+
+    if (fout == NULL) {
+        fprintf(stderr, "\nERROR: could not open file:\n%s\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    return fout;
+}
+
+
+//****************************************************************
+// Positions + occupation + coordination number
+//****************************************************************
+
+void output_sub(double pos[])
+{
+    int i, j;
+    char filename[FILENAME_SIZE];
+
+    make_output_filename(filename, sizeof(filename),
+                         "txt/strain",
+                         "Lattice_",
+                         outfilenum,
+                         1,
+                         "_force.txt");
+
+    outfilenum++;
+
+    FILE *fout = open_output_file(filename, "w");
+
+    for (i = 0; i < N; i++) {
+        fprintf(fout, "%d %20.15f %20.15f ", i, pos[i], pos[i + N]);
+
+        for (j = 0; j < 6; j++) {
+            fprintf(fout, " %d", occupation[i * 6 + j]);
+        }
+
+        fprintf(fout, " %d\n", coord_num[i]);
+    }
+
+    fclose(fout);
+
+    printf("\nFilename is: %s\n", filename);
+}
+
+
+//****************************************************************
+// Forces on nodes
+//****************************************************************
+
+void force_output(double force[])
+{
+    int i;
+    char filename[FILENAME_SIZE];
+
+    make_output_filename(filename, sizeof(filename),
+                         "txt/force",
+                         "Force_",
+                         outfilenum_force,
+                         1,
+                         "_force.txt");
+
+    outfilenum_force++;
+
+    FILE *fout = open_output_file(filename, "w");
+
+    for (i = 0; i < N; i++) {
+        fprintf(fout, "%15.5e \t %15.5e\n", force[i], force[i + N]);
+    }
+
+    fclose(fout);
+}
+
+
+//****************************************************************
+// Bending forces
+//****************************************************************
+
+void bend_force_output()
+{
+    int i, j;
+    char filename[FILENAME_SIZE];
+
+    make_output_filename(filename, sizeof(filename),
+                         "txt/area",
+                         "bend_force_",
+                         0,
+                         0,
+                         "_force.txt");
+
+    FILE *fout = open_output_file(filename, "w");
+
+    for (i = 0; i < N; i++) {
+        fprintf(fout, "%12d \t", i);
+
+        for (j = 0; j < 3; j++) {
+            fprintf(fout, "%15.5e \t %15.5e \t",
+                    FILAx[3 * i + j],
+                    FILAy[3 * i + j]);
+        }
+
+        fprintf(fout, "\n");
+    }
+
+    fclose(fout);
+}
+
+
+//****************************************************************
+// Rest lengths
+//****************************************************************
+
+void rlen_output()
+{
+    int i, j;
+    char filename[FILENAME_SIZE];
+
+    make_output_filename(filename, sizeof(filename),
+                         "txt/rlen",
+                         "rlen_",
+                         rlen_outfilenum,
+                         1,
+                         ".txt");
+
+    rlen_outfilenum++;
+
+    FILE *fout = open_output_file(filename, "w");
+
+    for (i = 0; i < N; i++) {
+        for (j = 0; j < 6; j++) {
+            fprintf(fout, "%8.4f ", rlen_arr[i * 6 + j]);
+        }
+        fprintf(fout, "\n");
+    }
+
+    fclose(fout);
+}
+
+
+//****************************************************************
+// Generic node-list writer
+// Used by dipole, unique dipole, boundary, and inner node outputs
+//****************************************************************
+
+void output_node_list(
+    const char *subdir,
+    const char *prefix,
+    const int nodes[],
+    int count
+)
+{
+    int i;
+    char filename[FILENAME_SIZE];
+
+    make_output_filename(filename, sizeof(filename),
+                         subdir,
+                         prefix,
+                         0,
+                         0,
+                         "_force.txt");
+
+    FILE *fout = open_output_file(filename, "w");
+
+    for (i = 0; i < count; i++) {
+        fprintf(fout, " %d %d \n", i, nodes[i]);
+    }
+
+    fclose(fout);
+}
+
 
 //****************************************************************
 //****************************************************************
 
-
-// code to write output file containing positions of points written by abhinav:
-void output_sub( double pos[] ){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/strain/Lattice_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-		
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/strain/Lattice_");
-	}
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	k=filenum;
-/*
-	if (num_center < 49)
-	{
-	for (i = 0; i < num_center; i++){
-//		sprintf(move1_txt,"%d", move1);
-		sprintf(move1_txt,"%d", loc_center[i]);
-		strcat(filename,move1_txt);
-		strcat(filename,"_");
-		printf("\n %s \n", move1_txt);
-		printf("\n %s \n", filename);
-	}
-	}
-*/
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", outfilenum);
-	strcat(filename,dig);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i=0;i<N;i++){
-		fprintf(fout,"%d %20.15f %20.15f ", i, pos[i], pos[i+N]); 
-		for(j=0;j<6;j++){
-			fprintf(fout," %d", occupation[i*6+j]); 
-		
-		}
-		fprintf(fout, " %d", coord_num[i]);
-		fprintf(fout,"\n"); 
-
-	}
-	fclose(fout);
-
-	printf("\n Filename is : %s \n", filename);
-
+void output_dip_nodes()
+{
+    output_node_list("txt/dip_nodes",
+                     "Dipole_nodes_",
+                     dip_node,
+                     num_node);
 }
 
 
-// code to write output file containing forces (including bending forces!!) on all nodes written by abhinav:
-void force_output( double force[] ){
+//****************************************************************
+//****************************************************************
 
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-//		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/force/1Force_");
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/force/Force_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-//		strcat(filename,"/txt/force/1Force_");
-		strcat(filename,"/txt/force/Force_");
-	}
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", outfilenum);
-	strcat(filename,dig);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum_force++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i=0;i<N;i++){
-		fprintf(fout,"%15.5e \t %15.5e", force[i], force[i+N]); 
-		fprintf(fout,"\n"); 
-	}
-	fclose(fout);
-
+void output_unique_dip_nodes()
+{
+    output_node_list("txt/dip_nodes",
+                     "Unique_dipole_nodes_",
+                     dip_node_unique,
+                     num_dip_unique);
 }
 
 
-// code to write output file containing positions of points written by abhinav:
-void force_output_xi( double force[] ){
+//****************************************************************
+//****************************************************************
 
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-//		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/force/1Force_");
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/force/xi_Force_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-//		strcat(filename,"/txt/force/1Force_");
-		strcat(filename,"/txt/force/xi_Force_");
-	}
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", outfilenum);
-	strcat(filename,dig);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum_force++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i=0;i<N;i++){
-		fprintf(fout,"%15.5e \t %15.5e", force[i+1], force[i+N+1]); 
-		fprintf(fout,"\n"); 
-	}
-	fclose(fout);
-
+void output_boundary_nodes(int boundary_nodes[], int temp_count)
+{
+    output_node_list("txt/area",
+                     "Boundary_nodes_",
+                     boundary_nodes,
+                     temp_count);
 }
 
 
-// code to write output file containing positions of points written by abhinav:
-void bend_force_output(){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-//		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/force/1Force_");
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/area/bend_force_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-//		strcat(filename,"/txt/force/1Force_");
-		strcat(filename,"/txt/area/bend_force_");
-	}
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	// sprintf(dig,"%d", outfilenum);
-	// strcat(filename,dig);
-	// strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	// outfilenum_force++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i=0;i<N;i++){
-		fprintf(fout,"%12d \t", i); 
-		for(j=0;j<3;j++){
-			fprintf(fout,"%15.5e \t %15.5e \t", FILAx[3*i+j], FILAy[3*i+j]); 
-		}
-		fprintf(fout,"\n"); 
-	}
-	fclose(fout);
-
-}
-
-// code to write output file containing rest-lengths of all bonds written by abhinav:
-void rlen_output(){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-//		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/force/1Force_");
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/rlen/rlen_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/rlen/rlen_");
-	}
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", rlen_outfilenum);
-	strcat(filename,dig);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,".txt");
-
-	rlen_outfilenum++;  // not used anymore in this function:: replaced by tstep
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i=0;i<N;i++){
-		for(j=0;j<6;j++){
-			fprintf(fout,"%8.4f ", rlen_arr[i*6+j]); 
-		}
-		fprintf(fout,"\n"); 
-	}
-	fclose(fout);
-
-}
-
-// code to write output file containing positions of dipole points written by abhinav:
-void output_dip_nodes(){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-//	char filename[1000]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-
-	char *filename = malloc (sizeof (char) * 1000);	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-//	if ((L == 64)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/dip_nodes/Dipole_nodes_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-		
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/dip_nodes/Dipole_nodes_");
-	}
-
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-
-//	k=filenum;
-
-/*
-	if (num_center < 49)
-	{
-	for (i = 0; i < num_center; i++){
-//		sprintf(move1_txt,"%d", move1);
-		sprintf(move1_txt,"%d", loc_center[i]);
-		strcat(filename,move1_txt);
-		strcat(filename,"_");
-		printf("\n %s \n", move1_txt);
-		printf("\n %s \n", filename);
-	}
-	}
-*/
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-//	sprintf(dig,"%d", outfilenum);
-//	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-//	outfilenum++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-
-	for (i = 0; i < num_node; i++){
-		fprintf(fout," %d %d \n", i, dip_node[i]); 
-	}
-
-
-	fclose(fout);
-
-
+//****************************************************************
+//****************************************************************
+
+void output_inner_nodes(int inner_nodes[], int inner_count)
+{
+    output_node_list("txt/area",
+                     "Inner_nodes_",
+                     inner_nodes,
+                     inner_count);
 }
 
 
+//****************************************************************
+// Outer nodes
+//****************************************************************
 
-// writing the unique positions of dipole nodes to file
-// code to write output file containing positions of dipole points written by abhinav:
-void output_unique_dip_nodes(){
+void output_outer_nodes()
+{
+    int i;
+    char filename[FILENAME_SIZE];
 
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
+    make_output_filename(filename, sizeof(filename),
+                         "txt/area",
+                         "Outer_nodes_",
+                         0,
+                         0,
+                         "_force.txt");
 
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-//	char filename[1000]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
+    FILE *fout = open_output_file(filename, "w");
 
-	char *filename = malloc (sizeof (char) * 1000);	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
+    for (i = 0; i < N; i++) {
+        if (outer_node[i] == 1) {
+            fprintf(fout, " %6d \n", i);
+        }
+    }
 
-
-//	if ((L == 64) && (PBOND == 1.0)){
-//	if ((L == 64)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/dip_nodes/Unique_dipole_nodes_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-		
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/dip_nodes/Unique_dipole_nodes_");
-	}
-
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-
-//	k=filenum;
-
-/*
-	if (num_center < 49)
-	{
-	for (i = 0; i < num_center; i++){
-//		sprintf(move1_txt,"%d", move1);
-		sprintf(move1_txt,"%d", loc_center[i]);
-		strcat(filename,move1_txt);
-		strcat(filename,"_");
-		printf("\n %s \n", move1_txt);
-		printf("\n %s \n", filename);
-	}
-	}
-*/
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-//	sprintf(dig,"%d", outfilenum);
-//	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-//	outfilenum++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-
-	for (i = 0; i < num_dip_unique; i++){
-		fprintf(fout," %d %d \n", i, dip_node_unique[i]); 
-	}
-
-
-	fclose(fout);
-
-
+    fclose(fout);
 }
 
 
+//****************************************************************
+// Connectivity output
+//****************************************************************
 
+void output_connect(double pos[])
+{
+    int i, j;
+    int dummy;
+    char filename[FILENAME_SIZE];
 
+    make_output_filename(filename, sizeof(filename),
+                         "txt/strain",
+                         "Lattice_connect_",
+                         outfilenum5,
+                         1,
+                         "_force.txt");
 
+    outfilenum5++;
 
-// code to write output file containing positions of points written by abhinav:
-void output_connect( double pos[] ){
+    printf("\nfilename: %s\n", filename);
 
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
+    FILE *fout = open_output_file(filename, "w");
 
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-	
+    for (i = 0; i < N; i++) {
+        fprintf(fout, "%5d %014.10f %014.10f ", i, pos[i], pos[i + N]);
 
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_connect_");
-//	}
+        for (j = 0; j < 6; j++) {
+            if (occupation[connect[i][j] * 6 + (j + 3) % 6] == 1) {
+                fprintf(fout, " %5d", connect[i][j]);
+            }
+            else {
+                if (L == 64) {
+                    dummy = 9999;
+                }
+                else {
+                    dummy = -1;
+                }
 
+                fprintf(fout, " %5d", dummy);
+            }
+        }
 
-//	if ((L == 64) && (PBOND == 1.0)){
-//	if ((L == 64)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/strain/Lattice_connect_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-		
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
+        fprintf(fout, " %d\n", coord_num[i]);
+    }
 
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/strain/Lattice_connect_");
-	}
-
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-
-//	k=filenum;
-
-/*
-	if (num_center < 49)
-	{
-	for (i = 0; i < num_center; i++){
-//		sprintf(move1_txt,"%d", move1);
-		sprintf(move1_txt,"%d", loc_center[i]);
-		strcat(filename,move1_txt);
-		strcat(filename,"_");
-		printf("\n %s \n", move1_txt);
-		printf("\n %s \n", filename);
-	}
-	}
-*/
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", outfilenum5);
-	strcat(filename,dig);
-
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum5++;  // not used anymore in this function:: replaced by tstep
-
-    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i=0;i<N;i++){
-		fprintf(fout,"%5d %014.10f %014.10f ", i, pos[i], pos[i+N]); 
-		for(j=0;j<6;j++){
-			if (occupation[connect[i][j]*6+(j+3)%6] == 1){
-				fprintf(fout," %5d", connect[i][j]); 
-			}		
-			else {
-				if (L == 64) fprintf(fout," %5d", 9999);   // dummy number for non existing bonds 				
-				else if (L == 128) fprintf(fout," %5d", -1);   // dummy number for non existing bonds 				
-			}
-		}
-		fprintf(fout, " %d", coord_num[i]);
-
-		fprintf(fout,"\n"); 
-	}
-	fclose(fout);
-
+    fclose(fout);
 }
 
 
-// code to write output file containing positions of boundary points written by abhinav:
-void output_boundary_nodes(int boundary_nodes[], int temp_count){
+//****************************************************************
+// Strain and stretching energy per bond
+//****************************************************************
 
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
+void output_strain_sub()
+{
+    int i, j;
+    char filename[FILENAME_SIZE];
 
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-//	char filename[1000]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
+    make_output_filename(filename, sizeof(filename),
+                         "txt/strain",
+                         "Strain_Lattice_",
+                         outfilenum_strain,
+                         1,
+                         "_force.txt");
 
-	char *filename = malloc (sizeof (char) * 1000);	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
+    outfilenum_strain++;
 
+    FILE *fout = open_output_file(filename, "w");
 
-//	if ((L == 64) && (PBOND == 1.0)){
-//	if ((L == 64)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/area/Boundary_nodes_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-		
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
+    for (i = 0; i < N; i++) {
+        fprintf(fout, "%d ", i);
 
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
+        for (j = 0; j < 6; j++) {
+            fprintf(fout, " %15.10f", strain_bonds[i * 6 + j]);
+        }
 
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
+        for (j = 0; j < 6; j++) {
+            fprintf(fout, " %15.10e", ES[i * 6 + j]);
+        }
 
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
+        fprintf(fout, "\n");
+    }
 
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/area/Boundary_nodes_");
-	}
-
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-//	sprintf(dig,"%d", outfilenum);
-//	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-//	outfilenum++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-
-	for (i = 0; i < temp_count; i++){
-		fprintf(fout," %d %d \n", i, boundary_nodes[i]); 
-	}
-
-
-	fclose(fout);
-
-
+    fclose(fout);
 }
 
 
-// code to write output file containing positions of boundary points written by abhinav:
-void output_inner_nodes(int inner_nodes[], int inner_count){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-//	char filename[1000]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-
-	char *filename = malloc (sizeof (char) * 1000);	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-//	if ((L == 64)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/area/Inner_nodes_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-		
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/area/Inner_nodes_");
-	}
-
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-//	sprintf(dig,"%d", outfilenum);
-//	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-//	outfilenum++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-
-	for (i = 0; i < inner_count; i++){
-		fprintf(fout," %d %d \n", i, inner_nodes[i]); 
-	}
-
-
-	fclose(fout);
-
-
-}
-
-// code to write output file containing positions of nodes outside circular boundaries written by abhinav:
-void output_outer_nodes(){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-//	char filename[1000]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-
-	char *filename = malloc (sizeof (char) * 1000);	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-//	if ((L == 64)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/area/Outer_nodes_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-		
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/area/Outer_nodes_");
-	}
-
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-//	sprintf(dig,"%d", outfilenum);
-//	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-//	outfilenum++;  // not used anymore in this function:: replaced by tstep
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i = 0; i < N; i++){
-		if(outer_node[i] == 1){
-			fprintf(fout," %6d \n", i); 
-		}
-	}
-
-	fclose(fout);
+//****************************************************************
+// Total system energy
+//****************************************************************
+
+void output_energy_sub(
+    double en_tot,
+    double en_elastic,
+    double en_comp,
+    double en_bend,
+    double en_arp
+)
+{
+    char filename[FILENAME_SIZE];
+    const char *mode;
+
+    make_output_filename(filename, sizeof(filename),
+                         "energy/strain",
+                         "Lattice_",
+                         0,
+                         0,
+                         "_force.txt");
+
+    if (outfilenum1 == 0) {
+        mode = "w";
+    }
+    else {
+        mode = "a";
+    }
+
+    outfilenum1++;
+
+    FILE *fout = open_output_file(filename, mode);
+
+    fprintf(fout, "%15.5e %15.5e %15.5e %15.5e %15.5e\n",
+            en_tot,
+            en_elastic,
+            en_comp,
+            en_bend,
+            en_arp);
+
+    fclose(fout);
 }
 
 
-// code to write output file containing positions of points written by abhinav:
-void output_strain_sub(){
+//****************************************************************
+// Energy at each node
+//****************************************************************
 
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
+void output_energy_node_sub(double ES[], double FILB[])
+{
+    int i, j;
+    char filename[FILENAME_SIZE];
 
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
+    make_energy_node_filename(filename, sizeof(filename), en_node_outfilenum);
 
+    en_node_outfilenum++;
 
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/strain/Strain_Lattice_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
+    FILE *fout = open_output_file(filename, "w");
 
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
+    for (i = 0; i < N; i++) {
+        fprintf(fout, "%10d ", i);
 
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
+        // stretching energy
+        for (j = 0; j < 6; j++) {
+            fprintf(fout, "%15.5e ", ES[6 * i + j]);
+        }
 
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
+        // bending energy
+        for (j = 0; j < 3; j++) {
+            fprintf(fout, "%15.5e ", FILB[3 * i + j]);
+        }
 
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
+        fprintf(fout, "\n");
+    }
 
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/strain/Strain_Lattice_");
-	}
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	k=filenum;
-/*
-	if (num_center < 49)
-	{
-	for (i = 0; i < num_center; i++){
-//		sprintf(move1_txt,"%d", move1);
-		sprintf(move1_txt,"%d", loc_center[i]);
-		strcat(filename,move1_txt);
-		strcat(filename,"_");
-		printf("\n %s \n", move1_txt);
-		printf("\n %s \n", filename);
-	}
-	}
-*/
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", outfilenum_strain);
-	strcat(filename,dig);
-
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum_strain++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i=0;i<N;i++){
-		fprintf(fout,"%d ", i); 
-		for(j=0;j<6;j++){
-			fprintf(fout," %15.10f", strain_bonds[i*6+j]); 		
-		}
-		for(j=0;j<6;j++){
-			fprintf(fout," %15.10e", ES[i*6+j]); 		
-		}
-		fprintf(fout,"\n"); 
-
-	}
-	fclose(fout);
-
+    fclose(fout);
 }
 
 
-// code to write output file containing positions of points written by abhinav:
-void output_sub_movie( double pos[] ){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/movie/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-//	if ((L == 64)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/movie/Lattice_");
-	}
-
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/movie/Lattice_");
-	}
-
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", outfilenum4);
-	strcat(filename,dig);
-
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum4++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i=0;i<N;i++){
-		fprintf(fout,"%d %0.10f %0.10f ", i, pos[i], pos[i+N]); 
-		for(j=0;j<6;j++){
-			fprintf(fout," %d", occupation[i*6+j]); 
-		
-		}
-		fprintf(fout,"\n"); 
-
-	}
-	fclose(fout);
-
-}
-
-
-// output energies of the system at the end of time step
-void output_energy_sub( double en_tot, double en_elastic, double en_comp, double en_bend, double en_arp){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/energy/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-//	if ((L == 64)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/energy/strain/Lattice_");
-	}
-
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/energy/strain/Lattice_");
-	}
-
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	k=filenum;
-
-/*
-	if (num_center < 49)
-	{
-	for (i = 0; i < num_center; i++){
-//		sprintf(move1_txt,"%d", move1);
-		sprintf(move1_txt,"%d", loc_center[i]);
-		strcat(filename,move1_txt);
-		strcat(filename,"_");
-		printf("\n %s \n", move1_txt);
-		printf("\n %s \n", filename);
-	}
-	}
-*/
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 8){
-//	sprintf(extra_dip_txt,"%ld", move16);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-//	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-//	sprintf(dig,"%d", outfilenum1);
-//	strcat(filename,dig);
-//	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum1++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	if (outfilenum1 == 1){
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-	}
-	else{
-	fout=fopen( filename,"a");		
-	}
-
-//	fprintf(fout,"%20.15f %20.15f %20.15f %20.15f \n", en_tot, en_elastic, en_comp, en_bend); 
-	fprintf(fout,"%15.5e %15.5e %15.5e %15.5e %15.5e \n", en_tot, en_elastic, en_comp, en_bend, en_arp); 
-
-	fclose(fout);
-
-}
-
-// Energy at each node **********************************************************************
-void output_energy_node_sub( double ES[], double FILB[]){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/energy/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-//	if ((L == 64)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/energy/node/Lattice_node_");
-
-		strcat(filename,"srand_");	
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-		strcat(filename,"_");	
-	}
-
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/energy/node/Lattice_node_");
-	}
-
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	k=filenum;
-
-/*
-	if (num_center < 49)
-	{
-	for (i = 0; i < num_center; i++){
-//		sprintf(move1_txt,"%d", move1);
-		sprintf(move1_txt,"%d", loc_center[i]);
-		strcat(filename,move1_txt);
-		strcat(filename,"_");
-		printf("\n %s \n", move1_txt);
-		printf("\n %s \n", filename);
-	}
-	}
-*/
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 8){
-//	sprintf(extra_dip_txt,"%ld", move16);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-//	strcat(filename,"_");
-
-	strcat(filename,"_");
-//	sprintf(move_txt,"%0.9f", force_val);
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", en_node_outfilenum);
-	strcat(filename,dig);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	en_node_outfilenum++;  
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-
-	for (i=0; i < N; i++){
-		fprintf(fout,"%10d ", i); 
-
-		for (j=0;j<6;j++){   // writing the stretching energy first
-			fprintf(fout,"%15.5e ", ES[6*i+j]); 
-			}
-
-		for (j=0;j<6;j++){  // writing the bending energy next
-			if(j/3==0){
-				fprintf(fout,"%15.5e ", FILB[3*i+j]); 
-			}
-		}
-		fprintf(fout," \n"); 
-	}
-
-	fclose(fout);
-
-}
-// ******************* **********************************************************************
-
-// output energies of the system at the end of time step
-void output_en_cg_accepted( double en_tot, double en_elastic, double en_bend, double en_force){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/energy/movie/movie");
-//	}
-
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/energy/movie/cg_accepted_movie");
-	}
-	
-
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-		
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/energy/movie/cg_accepted_movie");
-	}
-
-	if (L == 96){
-		strcat(filename,"_96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"_128_");    // for box 96 x 96
-	}
-
-
-//	k=filenum;
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum_cg_en++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	if (outfilenum3 == 1){
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-	}
-	else{
-	fout=fopen( filename,"a");		
-	}
-
-	fprintf(fout,"%24.12e %24.12e %24.12e %24.12e \n", en_tot, en_elastic, en_bend, en_force); 
-
-	fclose(fout);
-}
-
-
-// code to write output file containing positions of points written by abhinav FOR every accepted CG step:
-void output_sub_cg( double posx[], double posy[] ){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/strain/Lattice_");
-//	}
-
-
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/CG/Lattice_");
-	}
-	
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/CG/Lattice_");
-	}
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	k=filenum;
-/*
-	if (num_center < 49)
-	{
-	for (i = 0; i < num_center; i++){
-//		sprintf(move1_txt,"%d", move1);
-		sprintf(move1_txt,"%d", loc_center[i]);
-		strcat(filename,move1_txt);
-		strcat(filename,"_");
-		printf("\n %s \n", move1_txt);
-		printf("\n %s \n", filename);
-	}
-	}
-*/
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", outfilenum_cg);
-	strcat(filename,dig);
-
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum_cg++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-
-	for (i=0;i<N;i++){
-		fprintf(fout,"%5d %20.15f %20.15f ", i, posx[i], posy[i]); 
-		fprintf(fout,"\n"); 
-	}
-
-	fclose(fout);
-
-}
-
-
-// output energies of the system at the end of time step
-void output_en_anim( double en_tot, double en_elastic, double en_bend, double en_force){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-	char filename[500]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-	
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/energy/movie/movie");
-//	}
-
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/energy/movie/movie");
-	}
-	
-
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-		
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/energy/movie/movie");
-	}
-
-	if (L == 96){
-		strcat(filename,"_96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"_128_");    // for box 96 x 96
-	}
-
-
-//	k=filenum;
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum3++;  // not used anymore in this function:: replaced by tstep
-
-//    printf("\n filename: %s \n", filename);
-
-	FILE * fout;
-	if (outfilenum3 == 1){
-	fout=fopen( filename,"w");
-//	fd=fopen("Lattice.ps","w");	//open the file or create one if it doesn't exist, "w" is the 'write to' flag
-	}
-	else{
-	fout=fopen( filename,"a");		
-	}
-
-	fprintf(fout,"%0.9f %0.9f %0.9f %0.9f \n", en_tot, en_elastic, en_bend, en_force); 
-
-	fclose(fout);
-
-}
-
-
-// create the output file name for storing angles
-char * output_bend_name(){
-
-	int i,j,k,mode,truuf;
-	double f,Mx,My,dx,dy,hue,dl,thresh,stash,base,r,b;
-	double p1[2*N],q[2*N];
-
-//************* FOR MULTIPLE FILE NAMES ***********
-//*************************************************
-	char dig[10]; //Decimal index of filename 
-	char move1_txt[10], move2_txt[10], pert_txt[10], num_txt[10], pbond_txt[7],tol_txt[10],extra_dip_txt[5],kappa2_txt[10]; //Decimal index of filename 
-//	char filename[120]; //MAX length of filename in characters 
-	char rseed1_txt[10],rseed2_txt[10];	
-	char move_txt[15];
-
-	char *filename = malloc (sizeof (char) * 500);	
-
-//	if (L == 64){
-//		strcpy(filename,"lattice_nopbd/txt/bend/strain/Lattice_bend_");
-//	}
-
-//	if ((L == 64) && (PBOND == 1.0)){
-	if ((PBOND == 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/txt/bend/strain/Lattice_bend_");
-	}
-
-	else if ((PBOND < 1.0)){
-		strcpy(filename,"lattice_nopbd_bndry_all_clamp_restlength_circle_inner_fixed_radial_arp_bash_radial/kappa2_");
-
-		if(kappa2 == 1.0e-6){
-			strcat(filename,"e-6/");
-		}
-		else if(kappa2 == 1.0e-4){
-			strcat(filename,"e-4/");
-		}
-		else if(kappa2 == 1.0e-2){
-			strcat(filename,"e-2/");
-		}
-		else if(kappa2 == 2.0e-5){
-			strcat(filename,"2e-5/");
-		}
-		else if(kappa2 == 2.0e-6){
-			strcat(filename,"2e-6/");
-		}
-		else if(kappa2 == 5.0e-6){
-			strcat(filename,"5e-6/");
-		}
-		else if(kappa2 == 2e-7){
-			strcat(filename,"2e-7/");
-		}
-		else if(kappa2 == 5.0e-7){
-			strcat(filename,"5e-7/");
-		}
-		else if(kappa2 == 4.0e-7){
-			strcat(filename,"4e-7/");
-		}
-		else if(kappa2 == 1.0e-7){
-			strcat(filename,"e-7/");
-		}
-		else if(kappa2 == 1.0e-3){
-			strcat(filename,"e-3/");
-		}
-		else if(kappa2 == 2.0e-3){
-			strcat(filename,"2e-3/");
-		}
-		else if(kappa2 == 5.0e-3){
-			strcat(filename,"5e-3/");
-		}
-		else if(kappa2 == 2e-4){
-			strcat(filename,"2e-4/");
-		}
-		else if(kappa2 == 5e-4){
-			strcat(filename,"5e-4/");
-		}
-		else if(kappa2 == 5e-5){
-			strcat(filename,"5e-5/");
-		}
-
-		else if(kappa2 == 8.0e-6){
-			strcat(filename,"8e-6/");
-		}
-		else if(kappa2 == 1.0e-5){
-			strcat(filename,"e-5/");
-		}
-		else if(kappa2 == 4.0e-5){
-			strcat(filename,"4e-5/");
-		}
-		else if(kappa2 == 8.0e-5){
-			strcat(filename,"8e-5/");
-		}
-
-		else if(kappa2 == 0){
-			strcat(filename,"0/");
-		}
-
-		sprintf(rseed1_txt,"%ld", ranseed1);
-		strcat(filename,rseed1_txt);
-		strcat(filename,",");
-		sprintf(rseed2_txt,"%ld", ranseed2);
-		strcat(filename,rseed2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", srand_arg);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/");
-		sprintf(move2_txt,"%d", diff_network1);
-		strcat(filename,move2_txt);
-		strcat(filename,",");
-		sprintf(move2_txt,"%d", diff_network2);
-		strcat(filename,move2_txt);
-
-		strcat(filename,"/txt/bend/strain/Lattice_bend_");
-	}
-	if (L == 96){
-		strcat(filename,"96_");    // for box 96 x 96
-	}
-	else if (L == 128){
-		strcat(filename,"128_");    // for box 96 x 96
-	}
-
-//	k=filenum;
-
-/*
-	if (num_center < 49)
-	{
-	for (i = 0; i < num_center; i++){
-//		sprintf(move1_txt,"%d", move1);
-		sprintf(move1_txt,"%d", loc_center[i]);
-		strcat(filename,move1_txt);
-		strcat(filename,"_");
-		printf("\n %s \n", move1_txt);
-		printf("\n %s \n", filename);
-	}
-	}
-*/
-
-//	sprintf(move2_txt,"%d", move2);
-	sprintf(move2_txt,"%d", num_center);
-	strcat(filename,move2_txt);
-	strcat(filename,"_");	
-
-//	if(num_dip == 8){
-//	sprintf(extra_dip_txt,"%ld", move16);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-//	if(num_dip == 9){
-//	sprintf(extra_dip_txt,"%ld", move18);
-//	strcat(filename,extra_dip_txt);
-//	strcat(filename,"_");
-//	}
-
-	sprintf(num_txt,"%d", num_dip);
-	strcat(filename,num_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.2f", PBOND);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(tol_txt,"%0.2e", TOL);
-	strcat(filename,tol_txt);
-	strcat(filename,"_");
-
-	sprintf(kappa2_txt,"%0.2e", kappa2);
-	strcat(filename,kappa2_txt);
-	strcat(filename,"_");
-
-	strcat(filename,"_");
-	sprintf(move_txt,"%0.4f", rlen_max);
-	strcat(filename,move_txt);
-	strcat(filename,"_");
-
-	if (line_flag == 1){
-		strcat(filename,"_");
-		sprintf(pbond_txt,"%d", line_flag);
-		strcat(filename,pbond_txt);
-		strcat(filename,"_");
-	}
-
-	sprintf(pbond_txt,"%0.4f", mu);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(pbond_txt,"%0.4f", mu_c);
-	strcat(filename,pbond_txt);
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", outfilenum2);
-	strcat(filename,dig);
-
-	strcat(filename,"_");
-
-	sprintf(dig,"%d", times);
-	strcat(filename,dig);
-
-	strcat(filename,"_force.txt");
-
-	outfilenum2++;  // not used anymore in this function:: replaced by tstep
-	return filename;
-//	return str_to_ret;
+//****************************************************************
+// Creates output filename for storing bend/angle data
+//
+// Important:
+// This returns malloc'ed memory.
+//****************************************************************
+
+char *output_bend_name()
+{
+    char *filename = malloc(sizeof(char) * FILENAME_SIZE);
+
+    if (filename == NULL) {
+        fprintf(stderr, "ERROR: malloc failed in output_bend_name()\n");
+        exit(EXIT_FAILURE);
+    }
+
+    make_output_filename(filename, FILENAME_SIZE,
+                         "txt/bend/strain",
+                         "Lattice_bend_",
+                         outfilenum2,
+                         1,
+                         "_force.txt");
+
+    outfilenum2++;
+
+    return filename;
 }
 
 //****************************************************************
@@ -4250,113 +807,6 @@ char * output_bend_name(){
 
 //****************************************************************
 //****************************************************************
-
-
-
-
-
-
-//****************************************************************
-//****************************************************************
-
-//****************************************************************
-//****************************************************************
-
-
-
-double naffine(double subp[], double g){
-
-	int i,j;
-	double nax,nay;
-	double GAMMA,delnax,delnay,sumit;
-	j=0;
-	for(i=0;i<N;i++){
-			
-		nax=subp[i];
-		nay=subp[i+N];
-
-		if(i%L==0){
-			j++;
-		}
-			
-		if(i<L){
-			nax=pr[i];
-			nay=pr[i+N];
-
-		}
-		if(i>=L && i<N-L){
-				
-			if( j < L/2  ){
-				pr[i]=pr[i]-g*(L/2-j)*sin(THETA);
-//				pr[i+N];
-			}
-			if( j > L/2  ){
-				pr[i]=pr[i]+g*(j-L/2)*sin(THETA);
-//				pr[i+N]=pr[i+N];
-			}
-				
-		}
-		if(i>=N-L){
-			nax=pr[i];
-			nay=pr[i+N];
-		}
-
-		delnax=nax-pr[i];
-		delnay=nay-pr[i+N];
-		sumit=sumit+( pow(delnax,2)+pow(delnay,2) );
-	}
-
-	GAMMA=sumit/(N*pow(g,2));
-	return GAMMA;
-}
-
-
-double taffine(double p[], double g){
-
-	int i,j;
-	double delxi,delyi,alpha,alpha0,sumit;
-	double ux,uy,ux0,uy0,Lyi;
-	
-	alpha0=atan(g);
-	j=0;	
-	for(i=0;i<N;i++){
-		
-		ux=p[i];
-		uy=p[i+N];
-
-		ux0=x[i];
-		uy0=y[i];
-		alpha=atan(g);
-
-		if(i%L==0){
-			j++;
-			Lyi=(double)(j);
-		}
-		
-		if(i>=L && j<L/2){
-			ux=ux-g*(L/2-j)*sin(THETA);
-//			uy;
-			delxi=(ux-ux0);
-			delyi=(uy-uy0);
-			alpha=atan(delxi/(L/2-Lyi));
-		}
-
-		if(i< N-L && j>L/2){
-			ux=ux+g*(j-L/2)*sin(THETA);
-//			uy=uy;
-			delxi=(ux-ux0);
-			delyi=(uy-uy0);
-			alpha=atan(delxi/(Lyi-L/2));
-		}
-				
-		sumit=sumit+pow((alpha-alpha0),2);
-
-	}
-
-	return sumit/(N*pow(g,2));
-}
-
-
 
 void eraserhead(){
 	int i,j;
@@ -4441,571 +891,6 @@ k=0;
 }
 
 
-double stress(double p[]){
-
-	
-	double dx[N],dy[N],DfdX,DfdY;
-	double deltaX,deltaY,sigma,sigmax;
-
-	double rmj,rij,rik,rjk,rlk;
-	double delxij,delyij,delxik,delyik,delxjk,delyjk;
-	double delxmj,delymj,delxlk,delylk;
-	double THETAjik,THETAijk,THETAjki,fjik,fijk,fjki;
-	double THETAmji,fmji,CROSSmji,CROSSjik;
-	double THETAlki,flki,CROSSlki;
-
-	int i,j,k,m,bone,btwo,bthree,bfour,arp1,arp2,arp3;
-	int tempcon1,tempcon2;	
-
-//printf("Dfunc Indeed!\n");
-
-	for(i=0;i<N;i++){
-		if(i<L){
-			dx[i]=pr[i];
-			dy[i]=pr[i+N];
-		}
-		if(i>=L && i<N-L){
-			dx[i]=p[i];
-			dy[i]=p[i+N];
-			
-		}
-		if(i>=N-L){
-			dx[i]=pr[i];
-			dy[i]=pr[i+N];
-		}
-	}
-
-
-	k=0;					//*********************BOND SPRINGS*****************
-	if(mu > 0.0){				//**************************************************
-		for(i=0;i<N;i++){
-			for(j=0;j<3;j++){
-				
-				if(i%L==0){
-					k++;
-//					printf("%d %d\n",i,j);
-				}
-
-				if(occupation[i*6+j]==1){
-
-					deltaX=-(dx[i]-dx[ connect[i][j] ]);
-					deltaX=deltaX-( rint(deltaX/L)*L );
-	
-					deltaY=-(dy[i]-dy[ connect[i][j] ]);
-					deltaY=deltaY-( rint(deltaY/(L*sin(THETA)) )*L*sin(THETA) );
-
-//				printf("for site %d & %d deltaX=%f and deltaY=%f\n",i,connect[i][j],deltaX,deltaY);
-
-					rij=sqrt( pow(deltaX,2)+pow(deltaY,2) );
-
-//				printf("And rij = %f\n",rij);
-//				printf("\n");			
-				sigmax = sigmax-mu*(rij-1.0)*(deltaX/rij);
-
-				if(i>=L && k < L/2 && i<N-L ){
-
-					sigma=sigma+sigmax/sin(THETA)*(L/2-k);
-				}
-				if( k> L/2 && i<N-L  ){
-
-					sigma=sigma+sigmax/sin(THETA)*(k-L/2);
-				}
-					
-				
-				}
-			}
-		}
-	}
-
-				//*********************FILAMENT SPRINGS*************
-			//**************************************************
-if(kappa2 > 0.0){
-	for( i=0;i<N;i++ ){
-		for( j=0;j<3;j++ ){
-			
-			bone=occupation[i*6+j]; 
-			btwo=occupation[i*6+(j+3)%6];  
-			bthree=occupation[connect[i][j]*6+j];
-			bfour=occupation[connect[i][(j+3)%6]*6+(j+3)%6];
-		
-			fjik=0.0;
-			DfdX=0.0;
-			DfdY=0.0;
-			THETAjik=0.0;
-			delxij=delyij=delxik=delyik=0.0;
-			fmji=0.0;
-			DfdX=0.0;
-			DfdY=0.0;
-			THETAmji=0.0;
-			delxij=delyij=delxmj=delymj=0.0;
-			rij=rmj=0.0;
-			CROSSmji=0.0;
-			CROSSjik=0.0;
-			flki=0.0;
-			DfdX=0.0;
-			DfdY=0.0;
-			THETAlki=0.0;
-			delxik=delyik=delxlk=delylk=0.0;
-			rik=rlk=0.0;
-			CROSSlki=0.0;
-
-
-			if(bone==1 && btwo==1){  
-//				&&&&&&&&&&&&&&&& 1st Bond &&&&&&&&&&&&&&&&&				  	
-
-				delxij = -(dx[i]-(dx[ connect[i][j] ]));	
-				delxij = delxij-( rint(delxij/L)*L );
-
-				delyij = -(dy[i]-(dy[ connect[i][j] ]));
-				delyij = delyij-( rint(delyij/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rij = sqrt( pow(delxij,2)+pow(delyij,2) );
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-//				&&&&&&&&&&&&&&&& 2nd Bond &&&&&&&&&&&&&&&&&
-
-				delxik = -(dx[i]-( dx[ connect[i][(j+3)%6] ] ));
-				delxik = delxik-( rint(delxik/L)*L );
-
-				delyik = -(dy[i]-( dy[ connect[i][(j+3)%6] ] ));
-				delyik = delyik-( rint(delyik/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rik = sqrt( pow(delxik,2)+pow(delyik,2) );
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-
-
-				CROSSjik=-(delxij*delyik-delyij*delxik);
-				fjik=sqrt(pow(CROSSjik,2))/(rij*rik);
-				THETAjik=asin(fjik);
-
-				if(fabs(CROSSjik)>0.0){
-					DfdX=(delyik-delyij)*CROSSjik/(fabs(CROSSjik)*rij*rik)-fjik*delxij/pow(rij,2)-fjik*delxik/pow(rik,2);
-				
-
-					sigmax=sigmax+kappa2*(THETAjik)/( sqrt(1-pow(fjik,2)) )*DfdX;
-		
-					if(i>=L && k < L/2 && i<N-L ){
-	
-						sigma=sigma+sigmax/sin(THETA)*(L/2-k);
-					}
-					if( k> L/2 && i<N-L  ){
-
-						sigma=sigma+sigmax/sin(THETA)*(k-L/2);
-					}
-				}
-			}
-			if(bone==1 && bthree==1){
-
-				DfdX=0.0;
-				DfdY=0.0;
-				delxij=delyij=delxmj=delymj=0.0;
-				rij=rmj=0.0;
-
-				tempcon1=connect[i][j];
-				tempcon2=connect[connect[i][j]][j];
-//				&&&&&&&&&&&&&&&& 1st Bond ij &&&&&&&&&&&&&&&&&				  	
-
-				delxij = -(dx[i]-(dx[ tempcon1 ]));	
-				delxij = delxij-( rint(delxij/L)*L );
-
-				delyij = -(dy[i]-(dy[ tempcon1 ]));
-				delyij = delyij-( rint(delyij/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rij = sqrt( pow(delxij,2)+pow(delyij,2) );
-//				printf("Rij=%f for sites %d and %d\n",Rij,i,connect[i][j]);
-//				printf("Bond=%d\n",j);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-//				&&&&&&&&&&&&&&&& 2nd Bond jk &&&&&&&&&&&&&&&&&
-
-				delxmj = (dx[tempcon1]-( dx[ tempcon2 ] ));
-				delxmj = delxmj-( rint(delxmj/L)*L );
-
-				delymj = (dy[tempcon1]-( dy[ tempcon2 ] ));
-				delymj = delymj-( rint(delymj/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rmj = sqrt( pow(delxmj,2)+pow(delymj,2) );
-//				printf("Rik=%f for sites %d and %d\n",Rik,i,connect[i][MOD(j+3,6)]);
-//				printf("Bond=%d\n",(j+3)%6);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-
-
-				CROSSmji=delxij*delymj-delyij*delxmj;
-				fmji=sqrt(pow(CROSSmji,2))/(rij*rmj);
-				THETAmji=asin(fmji);
-
-				if(fabs(CROSSmji)>0.0){			
-			
-					DfdX=-delymj*CROSSmji/(fabs(CROSSmji)*rij*rmj)-delxij*fmji/(pow(rij,2));
-					DfdY=delxmj*CROSSmji/(fabs(CROSSmji)*rij*rmj)-delyij*fmji/(pow(rij,2));
-					
-					sigmax=sigmax+kappa2*(THETAmji)/( sqrt(1-pow(fmji,2)) )*DfdX;
-		
-					if(i>=L && k < L/2 && i<N-L ){
-	
-						sigma=sigma+sigmax/sin(THETA)*(L/2-k);
-					}
-					if( k> L/2 && i<N-L  ){
-
-						sigma=sigma+sigmax/sin(THETA)*(k-L/2);
-					}
-				}
-			}
-			if(btwo==1 && bfour==1){
-
-				DfdX=0.0;
-				DfdY=0.0;
-				delxik=delyik=delxlk=delylk=0.0;
-				rik=rlk=0.0;
-
-				tempcon1=connect[i][(j+3)%6];
-				tempcon2=connect[connect[i][(j+3)%6]][(j+3)%6];
-//				&&&&&&&&&&&&&&&& 1st Bond ij &&&&&&&&&&&&&&&&&				  	
-
-				delxik = -(dx[i]-(dx[ tempcon1 ]));	
-				delxik = delxik-( rint(delxik/L)*L );
-
-				delyik = -(dy[i]-(dy[ tempcon1 ]));
-				delyik = delyik-( rint(delyik/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rik = sqrt( pow(delxik,2)+pow(delyik,2) );
-//				printf("Rij=%f for sites %d and %d\n",Rij,i,connect[i][j]);
-//				printf("Bond=%d\n",j);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-//				&&&&&&&&&&&&&&&& 2nd Bond jk &&&&&&&&&&&&&&&&&
-
-				delxlk = (dx[tempcon1]-( dx[ tempcon2 ] ));
-				delxlk = delxlk-( rint(delxlk/L)*L );
-
-				delylk = (dy[tempcon1]-( dy[ tempcon2 ] ));
-				delylk = delylk-( rint(delylk/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rlk = sqrt( pow(delxlk,2)+pow(delylk,2) );
-//				printf("Rik=%f for sites %d and %d\n",Rik,i,connect[i][MOD(j+3,6)]);
-//				printf("Bond=%d\n",(j+3)%6);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-
-
-				CROSSlki=-(delyik*delxlk-delxik*delylk);
-				flki=sqrt(pow(CROSSlki,2))/(rik*rlk);
-				THETAlki=asin(flki);
-
-				if(fabs(CROSSlki) > 0.0){
-					DfdX=-delylk*CROSSlki/(fabs(CROSSlki)*rik*rlk)-delxik*flki/(pow(rik,2));
-					DfdY=delxlk*CROSSlki/(fabs(CROSSlki)*rik*rlk)-delyik*flki/(pow(rik,2));
-					
-					sigmax=sigmax+kappa2*(THETAlki)/( sqrt(1-pow(flki,2)) )*DfdX;
-		
-					if(i>=L && k < L/2 && i<N-L ){
-	
-						sigma=sigma+sigmax/sin(THETA)*(L/2-k);
-					}
-					if( k> L/2 && i<N-L  ){
-
-						sigma=sigma+sigmax/sin(THETA)*(k-L/2);
-					}
-				}
-			}
-		}
-	}
-}
-
-return sigma;
-
-}
-double diffmod(double p[]){
-
-
-	double dx[N],dy[N];
-	double ddEsx,ddEsy,ddEfx,ddEfy,ddEax,ddEay;	
-	double ddE,ddEs,ddEf,ddEa;
-	double DfdX,DfdY,DDfddX,DDfddY;
-	double ppartialfddxij,ppartialfddxik,ppartialfddyij,ppartialfddyik; 
-		
-	double rmj,rij,rik,rjk,rlk;
-	double delxij,delyij,delxik,delyik,delxjk,delyjk;
-	double delxmj,delymj,delxlk,delylk;
-	double THETAjik,THETAijk,THETAjki,fjik,fijk,fjki;
-	double THETAmji,fmji,CROSSmji,CROSSjik;
-	double THETAlki,flki,CROSSlki;
-
-	int i,j,k,m,bone,btwo,bthree,bfour,arp1,arp2,arp3;
-	int tempcon1,tempcon2;	
-	
-	
-	
-	
-
-	for(i=0;i<N;i++){
-		
-		if( i < L){	
-			dx[i]=pr[i];
-			dy[i]=pr[i+N];
-
-		}
-		if( i >= L && i < N-L ){
-			dx[i]=p[i];
-			dy[i]=p[i+N];
-		}
-		if(i>=N-L){
-			dx[i]=pr[i];
-			dy[i]=pr[i+N];
-		}
-	}
-//***************************Spring Contribution*******************************
-//*****************************************************************************
-k=0;
-ddEs=0.0;
-	for(i=0;i<N;i++){
-		for(j=0;j<3;j++){
-			ddEsx=ddEsy=0.0;
-	 		if(occupation[i*6+j]==1){
-
-				if(i%L==0){
-					k++;
-//					printf("%d %d\n",i,j);
-				}
-
-				delxij=-(dx[i]-dx[ connect[i][j] ]);
-				delxij=delxij-( rint(delxij/L)*L );
-
-				delyij=-(dy[i]-dy[ connect[i][j] ]);
-				delyij=delyij-( rint(delyij/( L*sin(THETA) ) )*L*sin(THETA) );
-
-				rij=sqrt( pow(delxij,2)+pow(delyij,2) );
-
-//				printf("%d %d xij=%f yij=%f anf rij=%f\n",i,connect[i][j],delxij,delyij,rij);
-
-//Shear along x on the y face				
-				ddEsx =(rij-1.0)/rij-pow(delxij,2)*(rij-1.0)/pow(rij,3) + pow(delxij,2)/pow(rij,2);
-//				printf("ddEsx=%f\n",ddEsx);
-//Shear along y on the x face
-//				ddEsy = pow(delyij,2)/pow(rij,2)-pow(delyij,2)*(rij-1.0)/pow(rij,3)+(rij-1.0)/rij;
-				
-				if(i>=L && k < L/2 && i<N-L ){
-
-					ddEs=ddEs+mu*(ddEsx)/pow(sin(THETA)*(L/2-k),2);//+ddEsy);
-				}
-				if( k> L/2 && i<N-L  ){
-
-					ddEs=ddEs+mu*(ddEsx)/pow(sin(THETA)*(k-L/2),2);//+ddEsy);
-				}
-		
-		
-				
-			}
-		}
-	}
-//***************************Filament Contribution*******************************
-//*****************************************************************************
-k=0;
-if(kappa2 > 0.0){
-	for( i=0;i<N;i++ ){
-
-		if(i%L==0){
-			k++;
-//			printf("%d %d\n",i,j);
-		}
-
-		for( j=0;j<3;j++ ){
-			
-			bone=occupation[i*6+j]; 
-			btwo=occupation[i*6+(j+3)%6];  
-			bthree=occupation[connect[i][j]*6+j];
-			bfour=occupation[connect[i][(j+3)%6]*6+(j+3)%6];
-		
-			fjik=0.0;
-			DfdX=0.0;
-			DfdY=0.0;
-			THETAjik=0.0;
-			delxij=delyij=delxik=delyik=0.0;
-			fmji=0.0;
-			DfdX=0.0;
-			DfdY=0.0;
-			THETAmji=0.0;
-			delxij=delyij=delxmj=delymj=0.0;
-			rij=rmj=0.0;
-			CROSSmji=0.0;
-			CROSSjik=0.0;
-			flki=0.0;
-			DfdX=0.0;
-			DfdY=0.0;
-			THETAlki=0.0;
-			delxik=delyik=delxlk=delylk=0.0;
-			rik=rlk=0.0;
-			CROSSlki=0.0;
-
-			if(bone==1 && btwo==1){  
-//				&&&&&&&&&&&&&&&& 1st Bond &&&&&&&&&&&&&&&&&				  	
-
-				delxij = -(dx[i]-(dx[ connect[i][j] ]));	
-				delxij = delxij-( rint(delxij/L)*L );
-
-				delyij = -(dy[i]-(dy[ connect[i][j] ]));
-				delyij = delyij-( rint(delyij/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rij = sqrt( pow(delxij,2)+pow(delyij,2) );
-//				printf("Rij=%f for sites %d and %d\n",rij,i,connect[i][j]);
-//				printf("Bond=%d\n",j);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-//				&&&&&&&&&&&&&&&& 2nd Bond &&&&&&&&&&&&&&&&&
-
-				delxik = -(dx[i]-( dx[ connect[i][(j+3)%6] ] ));
-				delxik = delxik-( rint(delxik/L)*L );
-
-				delyik = -(dy[i]-( dy[ connect[i][(j+3)%6] ] ));
-				delyik = delyik-( rint(delyik/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rik = sqrt( pow(delxik,2)+pow(delyik,2) );
-//				printf("Rik=%f for sites %d and %d\n",Rik,i,connect[i][MOD(j+3,6)]);
-//				printf("Bond=%d\n",(j+3)%6);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-
-
-				CROSSjik=-(delxij*delyik-delyij*delxik);
-				fjik=sqrt(pow(CROSSjik,2))/(rij*rik);
-				THETAjik=asin(fjik);
-				if(fabs(CROSSjik)>0.0){
-					DfdX=(delyik-delyij)*CROSSjik/(fabs(CROSSjik)*rij*rik)-fjik*delxij/pow(rij,2)-fjik*delxik/pow(rik,2);
-//					DfdY=(delxij-delxik)*CROSSjik/(fabs(CROSSjik)*rij*rik)-fjik*delyij/pow(rij,2)-fjik*delyik/pow(rik,2);
-
-DDfddX=pow((delyik-delyij),2)/(fjik*pow(rij*rik,2))-CROSSjik*(delyik-delyij)/(pow(fjik,2)*pow(rij*rik,2))*DfdX-2*CROSSjik*(delyik-delyij)/(fjik*pow(rij*rik,4))*(2*pow(rik,2)*delxij+2*pow(rik,2)*delxik)-( fjik/pow(rij,2)+delxij/pow(rij,2)*DfdX-fjik/(pow(rij,4))*pow(delxij,2) )-( fjik/pow(rik,2)+delxik/pow(rik,2)*DfdX-fjik/pow(rik,4)*pow(delxik,2) );
-
-				ddEfx= pow(DfdX/sqrt(1-pow(fjik,2)),2)+THETAjik*( DDfddX/sqrt(1-pow(fjik,2))+DfdX/pow(( 1-pow(fjik,2) ),3/2) );
-
-					if(i>=L && k < L/2 && i<N-L ){
-						
-						ddEf=ddEf+kappa2*ddEfx/pow(sin(THETA)*(L/2-k),2);
-					}
-					if( k> L/2 && i<N-L  ){
-
-						ddEf=ddEf+kappa2*ddEfx/pow(sin(THETA)*(k-L/2),2);
-					}				
-
-				}
-
-			}
-			if(bone==1 && bthree==1){ 
-				DfdX=0.0;
-				DfdY=0.0;
-				delxij=delyij=delxmj=delymj=0.0;
-				rij=rmj=0.0;
-
-				tempcon1=connect[i][j];
-				tempcon2=connect[connect[i][j]][j];
-//				&&&&&&&&&&&&&&&& 1st Bond ij &&&&&&&&&&&&&&&&&				  	
-
-				delxij = -(dx[i]-(dx[ tempcon1 ]));	
-				delxij = delxij-( rint(delxij/L)*L );
-
-				delyij = -(dy[i]-(dy[ tempcon1 ]));
-				delyij = delyij-( rint(delyij/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rij = sqrt( pow(delxij,2)+pow(delyij,2) );
-//				printf("Rij=%f for sites %d and %d\n",Rij,i,connect[i][j]);
-//				printf("Bond=%d\n",j);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-//				&&&&&&&&&&&&&&&& 2nd Bond jk &&&&&&&&&&&&&&&&&
-
-				delxmj = (dx[tempcon1]-( dx[ tempcon2 ] ));
-				delxmj = delxmj-( rint(delxmj/L)*L );
-
-				delymj = (dy[tempcon1]-( dy[ tempcon2 ] ));
-				delymj = delymj-( rint(delymj/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rmj = sqrt( pow(delxmj,2)+pow(delymj,2) );
-//				printf("Rik=%f for sites %d and %d\n",Rik,i,connect[i][MOD(j+3,6)]);
-//				printf("Bond=%d\n",(j+3)%6);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-
-
-				CROSSmji=delxij*delymj-delyij*delxmj;
-				fmji=sqrt(pow(CROSSmji,2))/(rij*rmj);
-				THETAmji=asin(fmji);
-
-				if(fabs(CROSSmji)>0.0){			
-			
-					DfdX=-delymj*CROSSmji/(fabs(CROSSmji)*rij*rmj)-delxij*fmji/(pow(rij,2));
-
-DDfddX=pow(delymj,2)/(fmji*pow(rij*rmj,2))+CROSSmji*delymj*DfdX/(fmji*pow(rij*rmj,2))+(CROSSmji*delymj*2*delxij)/(fmji*pow(rij,2)*rmj)-fmji/rij+(delymj*DfdX)/rij-(fmji*pow(delxij,2))/pow(rij,3);
-
-			ddEfx= pow(DfdX/sqrt(1-pow(fmji,2)),2)+THETAmji*( DDfddX/sqrt(1-pow(fmji,2))+DfdX/pow(( 1-pow(fmji,2) ),3/2) );
-
-					if(i>=L && k < L/2 && i<N-L ){
-						
-						ddEf=ddEf+kappa2*ddEfx/pow(sin(THETA)*(L/2-k),2);
-					}
-					if( k> L/2 && i<N-L  ){
-
-						ddEf=ddEf+kappa2*ddEfx/pow(sin(THETA)*(k-L/2),2);
-					}				
-				}
-			}
-			if(btwo==1 && bfour==1){
-				DfdX=0.0;
-				DfdY=0.0;
-				delxik=delyik=delxlk=delylk=0.0;
-				rik=rlk=0.0;
-
-				tempcon1=connect[i][(j+3)%6];
-				tempcon2=connect[connect[i][(j+3)%6]][(j+3)%6];
-//				&&&&&&&&&&&&&&&& 1st Bond ij &&&&&&&&&&&&&&&&&				  	
-
-				delxik = -(dx[i]-(dx[ tempcon1 ]));	
-				delxik = delxik-( rint(delxik/L)*L );
-
-				delyik = -(dy[i]-(dy[ tempcon1 ]));
-				delyik = delyik-( rint(delyik/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rik = sqrt( pow(delxik,2)+pow(delyik,2) );
-//				printf("Rij=%f for sites %d and %d\n",Rij,i,connect[i][j]);
-//				printf("Bond=%d\n",j);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-//				&&&&&&&&&&&&&&&& 2nd Bond jk &&&&&&&&&&&&&&&&&
-
-				delxlk = (dx[tempcon1]-( dx[ tempcon2 ] ));
-				delxlk = delxlk-( rint(delxlk/L)*L );
-
-				delylk = (dy[tempcon1]-( dy[ tempcon2 ] ));
-				delylk = delylk-( rint(delylk/(L*sin(THETA)) )*L*sin(THETA) );
-
-				rlk = sqrt( pow(delxlk,2)+pow(delylk,2) );
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
-
-
-				CROSSlki=-(delyik*delxlk-delxik*delylk);
-				flki=sqrt(pow(CROSSlki,2))/(rik*rlk);
-				THETAlki=asin(flki);
-
-				if(fabs(CROSSlki) > 0.0){
-
-					DfdX=-delylk*CROSSlki/(fabs(CROSSlki)*rik*rlk)-delxik*flki/(pow(rik,2));
-
-DDfddX=pow(delylk,2)/(flki*pow(rik*rlk,2))+CROSSlki*delylk*DfdX/(flki*pow(rik*rlk,2))+(CROSSlki*delylk*2*delxik)/(flki*pow(rik,2)*rlk)-flki/rik+(delylk*DfdX)/rik-(flki*pow(delxik,2))/pow(rik,3);
-
-			ddEfx= pow(DfdX/sqrt(1-pow(flki,2)),2)+THETAlki*( DDfddX/sqrt(1-pow(flki,2))+DfdX/pow(( 1-pow(flki,2) ),3/2) );
-
-					if(i>=L && k < L/2 && i<N-L ){
-						
-						ddEf=ddEf+kappa2*ddEfx/pow(sin(THETA)*(L/2-k),2);
-					}
-					if( k> L/2 && i<N-L  ){
-
-						ddEf=ddEf+kappa2*ddEfx/pow(sin(THETA)*(k-L/2),2);
-					}				
-
-				}
-//					DfdY=delxlk*CROSSlki/(fabs(CROSSlki)*rik*rlk)-delyik*flki/(pow(rik,2));
-			}
-		}
-		
-	}
-}	
-//Add it all up. Should multiply by L^2 (delx~gamma*L) , but then normalize by N to get per unit cell.  
-	//+ddEa;
-	ddE=ddE+(ddEs+ddEf)	;
-	return ddE/UNITC;
-}
-
-
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 //&&&&&&&&&&&&&&&&&&&& CONJUGATE GRADIENT &&&&&&&&&&&&&&&&&&&&&&&&&
 
@@ -5059,11 +944,7 @@ void frprmn( double p[], int n, double ftol, int *iter, double *fret, double (*f
 //		printf("\n ftol*(fabs(*fret)+fabs(fp)+EPS): %20.15f \n", ftol*(fabs(*fret)+fabs(fp)+EPS));
 //		printf("\n END   ----- after dlinmin fp: %20.15f fret: %20.15f \n", fp, *fret);
 
-		if (movie_flag == 0)  // creating movie of all virtual movements
-		{
-//			output_sub_movie(p);
-//			output_en_cg_accepted(ETOT, Eelastic/(UNITC/4), Filbend/(UNITC/4), Eforce/(UNITC/4));   // write energies to output file
-		}
+
 
 		if (2.0*fabs(*fret-fp) <= ftol*(fabs(*fret)+fabs(fp)+EPS)) { //check if we got it!
 //			for (j=1;j<n; j++)
@@ -5087,7 +968,6 @@ void frprmn( double p[], int n, double ftol, int *iter, double *fret, double (*f
 
 			printf("\n 1. Found the minima:  %f after:  %d steps \n", fp, its);
 
-//			force_output_xi(xi);
 			force_output(fxi);
 
 			free_dvector(xi,1,n);
@@ -5128,26 +1008,6 @@ void frprmn( double p[], int n, double ftol, int *iter, double *fret, double (*f
 	
 	}
 	printf("\n in frprmn line 1797. not a good place to be \n");
-
-// the following block of code is for debugging only
-// must remove later!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//
-//
-//	for (j=2010;j<2030; j++){
-//		printf("\n xi[%d]: %f ", j, xi[j]);				/* code */
-//		printf("\t p[%d]: %f ", j, p[j]);				/* code */
-//
-//	}
-//
-//	for (j=(2010+4096);j<(2030+4096); j++){
-//		printf("\n xi[%d]: %f ", j, xi[j]);				/* code */
-//		printf("\t p[%d]: %f ", j, p[j]);				/* code */
-//	}
-//
-//	return;
-//
-// the above block of code is for debugging only
-// must remove later!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 	nrerror("Too many iterations in frprmn");
 }
@@ -5526,14 +1386,6 @@ double func(double pit[])//,
 		
 		dip_true = 0;    // flag for checking if we are at a dipole node
 
-		// for (jj=0;jj<(num_dip_unique);jj++){
-		// 	if ( (i == dip_node_unique[jj]) ) {
-		// 		dip_true = 1;
-		// 	}
-		// }
-
-//		if( (i < L) || (i>=N-L) || (i%L == 0) || (i%L == L-1) || dip_true == 1){	    // checking all four boundaries
-//		if( (i < L) || (i>=N-L) || (i%L == 0) || (i%L == L-1)){	    // checking all four boundaries
 		if (outer_node[i] == 1){      // outer boundary
 			newx[i]=pr[i];
 			newy[i]=pr[i+N];
@@ -5545,12 +1397,7 @@ double func(double pit[])//,
 //			j++;
 		}
 
-//		if(i>=N-L){
-//			newx[i]=pr[i];
-//			newy[i]=pr[i+N];
-//		}
 	}
-//}
 
 	for(i=0;i<N;i++){
 		for(j=0;j<6;j++){
@@ -5562,33 +1409,6 @@ double func(double pit[])//,
 		}
 	}
 
-
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//!!!!!!!!!!!!!!!!!!!!!!!! EXTRA FORCE !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-/*
-for ( i=0; i<N; i++ ) {
-//	printf("/n dip_node[%d]: %d dip_node[%d+1]: %d /n", 0, dip_node[0], 1, dip_node[1]);
-	for (j=0;j<(num_node-1);j++){
-		if(j%2 == 0){
-		if (i == dip_node[j]){	
-			xdist_val = newx[dip_node[j+1]] - newx[dip_node[j]];		// good if the dipole is along x axis otherwise change
-			ydist_val = newy[dip_node[j+1]] - newy[dip_node[j]];		// good if the dipole is along x axis otherwise change
-			dist_val = sqrt( pow(xdist_val,2)+pow(ydist_val,2) );		// good if the dipole is along x axis otherwise change
-
-			if (ext_flag == 0){
-				Eforce = Eforce + (fabs(Ff[j])*fabs(dist_val));   			// this is f.d; contractile dipole
-			}
-			else if (ext_flag == 1){
-				Eforce = Eforce - (fabs(Ff[j])*fabs(dist_val));   			// this is -f.d; extensile dipole				
-			}
-//			Eforce = Eforce + (fabs(Ff[j])*fabs(dist_val-force_dist));   // this is f.delta_d   
-//			printf("\n xdist_val: %f ydist_val: %f \n", xdist_val,ydist_val);
-//			printf("\n Eforce: %f dist_val: %f dist_node: %f j: %d force: %f \n", Eforce, dist_val, dist_node, j, Ff[j]);
-		}
-	}
-	}
-} 	
-*/	
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!!!!!!!!!!!!!!!!!!!!!! BOND SPRING !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 if( mu > 0.0){
@@ -5604,9 +1424,6 @@ Ebuckle=0.0;
 			deltaX=deltaY=0.000000;
 			Rij=0.000000;
 			ES[6*i+j]=0.0000000;
-//			if ( (i<L && j==1)  || (i<L && j==2) || (i>=N-L && j==4) || (i>=N-L && j==5) ){
-//				ES[6*i+j]=0.0000000;
-//			}else 
 
 			dip_true = 0;
 			if(occupation[i*6+j]==1){
@@ -5625,102 +1442,6 @@ Ebuckle=0.0;
 //				delta_bond_len = Rij-1.0;
 				delta_bond_len = Rij-rlen_arr[i*6+j];
 
-//				for (k=0;k<num_center;k++){
-//					row = (int)loc_center[k]/L;
-
-//					if (row%2 == 0){
-
-//						if ((i == loc_center[k]) || (connect[i][j] == loc_center[k])){
-//							delta_bond_len = Rij-rlen;
-//						}
-
-						// else if ((i == loc_center[k] - 1) && (j == 2)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - 1) && (j == 4)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + 1) && (j == 1)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + 1) && (j == 5)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-
-						// else if ((i == loc_center[k] - L) && (j == 5)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L) && (j == 3)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L + 1) && (j == 0)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L + 1) && (j == 4)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L + 1) && (j == 2)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L + 1) && (j == 0)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L) && (j == 3)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L) && (j == 1)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-
-//					}
-
-//					else{
-//						if ((i == loc_center[k]) || (connect[i][j] == loc_center[k])){
-//							delta_bond_len = Rij-rlen;
-//						}
-
-						// else if ((i == loc_center[k] - 1) && (j == 2)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - 1) && (j == 4)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + 1) && (j == 1)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + 1) && (j == 5)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-
-						// else if ((i == loc_center[k] - L - 1) && (j == 5)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L - 1) && (j == 3)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L) && (j == 0)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L) && (j == 4)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L) && (j == 2)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L) && (j == 0)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L - 1) && (j == 3)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L - 1) && (j == 1)){
-						// 	delta_bond_len = Rij-rlen;
-						// }
-
-//					}	
-
-//				}
-
 				ES[6*i+j]=mu/4*pow( delta_bond_len ,2);
 
 			}
@@ -5729,10 +1450,6 @@ Ebuckle=0.0;
 			else Ecomp=Ecomp+ES[6*i+j];
 			//Eelastic=Eelastic+ES[6*i+j];
 				
-//			if ((Rij >= 1.0 && dip_true ==0 ) || (Rij >= rlen && dip_true ==1 )) Eelastic=Eelastic+ES[6*i+j]; //the extra 1/4 is for the unit-cell lattice spacing lenth=1/2
-//			else Ecompression=Ecompression+ES[6*i+j]; //the extra 1/4 is for the unit-cell lattice spacing lenth=1/2
-
-
 		}
 		
 	}
@@ -5809,20 +1526,6 @@ if(kappa1 > 0.0){
 	}	
 }
 
-
-/*for(i=0;i<N;i++){
-	k=0;
-	for(j=0;j<6;j++){
-
-		printf("Ebend between %d and %d and %d is %f\n",i,connect[i][j],connect[i][(j+1)%5], EB[18*i+j+k]);
-
-//		Ebend=Ebend+EB[18*i+j+k];
-		k++;
-	}
-}*/
-
-
-
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //!!!!!!!!!!!!!!!!!!!! FILAMENT ANGULAR SPRING !!!!!!!!!!!!!!!!!!!!!!
 
@@ -5866,9 +1569,6 @@ Filbend=0.0;
 
 				Rij = sqrt( pow(delxij,2)+pow(delyij,2) );
 
-/*if(fabs(Rij-1.0)>0.0){
-printf("Rij=%f %d %d\n",Rij,i,connect[i][j]);
-}*/
 //				printf("Rij=%f for sites %d and %d\n",Rij,i,connect[i][j]);
 //				printf("Bond=%d\n",j);
 //				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
@@ -5881,28 +1581,18 @@ printf("Rij=%f %d %d\n",Rij,i,connect[i][j]);
 //				delyik = delyik-( rint(delyik/(L*sin(THETA)) )*L*sin(THETA) );
 
 				Rik = sqrt( pow(delxik,2)+pow(delyik,2) );
-/*if(fabs(Rik-1.0)>0.0){
-printf("Rik=%f %d %d\n",Rik,i,connect[i][(j+3)%6]);
-}*/
 
 //				printf("Rik=%f for sites %d and %d\n",Rik,i,connect[i][MOD(j+3,6)]);
 //				printf("Bond=%d\n",(j+3)%6);
 //				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
 
 				CROSSjik=delxij*delyik-delyij*delxik;
-/*if(fabs(CROSSjik)>0.0){
-printf("sites %d,%d,%d the CR0SSPROD is %f, not zero!\n",i,connect[i][j],connect[i][(j+3)%6],CROSSjik);
-}*/
 
 				THETAjik=asin(sqrt(pow(CROSSjik,2))/(Rij*Rik));    // david's original small angle approximation
 //				THETAjik=sqrt(pow(CROSSjik,2))/(Rij*Rik);		// we will use the sin in energy calculation
 
 				THETAjik_half=THETAjik/2.0;    // theta / 2
 				sin_THETAjik_half = sin(THETAjik_half);   // sin (theta/2)
-
-//				if( (i==1 && j==0 && func_flag == 1) ){  
-//					printf("\n %f %f %f %f \n", Rij, Rik, CROSSjik, THETAjik);
-//				}
 
 				if (func_flag == 1){
 				i_new = i;               // used to write new line
@@ -5927,10 +1617,6 @@ printf("sites %d,%d,%d the CR0SSPROD is %f, not zero!\n",i,connect[i][j],connect
 //				FILB[3*i+j]=kappa2/2*pow(THETAjik,2);
 				FILB[3*i+j]=2*kappa2*pow(sin_THETAjik_half,2);   // 2*kappa*sin squared theta/2
 		
-//	if(FILB[3*i+j]>0.00000000 && occupation[i*6+j]==1 && occupation[i*6+(j+3)%6]==1 ){
-//					printf("site=%d site=%d site=%d\n",i,connect[i][j],connect[i][(j+3)%6]);				
-//					printf( "Ebend=%1.16f\n",FILB[3*i+j]);
-//				}
 				Filbend=Filbend+FILB[3*i+j];
 //				printf("\n");
 
@@ -5982,38 +1668,8 @@ printf("sites %d,%d,%d the CR0SSPROD is %f, not zero!\n",i,connect[i][j],connect
 		output_strain_sub();   // write energies to output file
 	}
 
-	if (en_flag == 0){
-//		printf("\n %f %f %f %f \n", ETOT, Eelastic/(UNITC/4), Ebend/(UNITC/4), Filbend/(UNITC/4));
-
-//		output_en_anim(ETOT, Eelastic/(UNITC/4), Filbend/(UNITC/4), Eforce/(UNITC/4));   // write energies to output file
-//		output_sub_cg(newx, newy);
-
-//		fclose(fout_en);  // close the output file for bending angles
-	}
-
 	return ETOT;
 }
-
-
-
-
-
-
-
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -6062,9 +1718,6 @@ void dfunc( double p[], double xi[]){
 				dip_true = 1;
 			}
 		}
-
-//		if(i<L || i>=N-L || i%L==0 || i%L==L-1 || dip_true == 1){       // checking all four boundaries
-//		if(i<L || i>=N-L || i%L==0 || i%L==L-1 ){       // checking all four boundaries
 		if (outer_node[i] == 1){      // outer boundary
 			dx[i]=pr[i];
 			dy[i]=pr[i+N];
@@ -6074,10 +1727,6 @@ void dfunc( double p[], double xi[]){
 			dy[i]=p[i+N];
 			
 		}
-//		if(i>=N-L){
-//			dx[i]=pr[i];
-//			dy[i]=pr[i+N];
-//		}
 	}
 
 
@@ -6094,44 +1743,9 @@ for(i=0;i<N;i++){
 
 }
 //!!!!!!!!!!!!!!!!!COMPUTE DERIVATIVE!!!!!!!!!!!!!!!
-					//*********************EXTRA FORCE*****************
-				//**************************************************
-//fsign_val = -1;
-//for ( i=0; i<N; i++ ) {
-//	for (j=0;j<(num_node);j++){
-//		if (i == dip_node[j]){			
-//			Ff[j] = Ff[j] + fsign_val*force_val;
-//			fsign_val = -1*fsign_val;
-//			printf("\n Extra force: %f \n", Ff[j]);
-//			printf("/n dist_node: %d /n", dist_node);
-//		}
-//	}
-//} 	
-
 					//*********************BOND SPRINGS*****************
 if(mu > 0.0){				//**************************************************
 	for(i=0;i<N;i++){
-
-		// dip_cent_flag = 0;
-		// dip_conn_flag = 0;
-		// for (k=0;k<num_center;k++){
-		// 	if (i == loc_center[k])
-		// 	{
-		// 		dip_cent_flag = 1;
-		// 		row = (int)loc_center[k]/L;
-		// 	}
-		// 	else{
-		// 		for(kk=0;kk<6;kk++){
-		// 			if (i == connect[loc_center[k]][kk])
-		// 			{
-		// 				row = (int)loc_center[k]/L;
-		// 				dip_conn_flag = 1;
-		// 			}
-		// 		}
-		// 	}
-		// }
-
-
 		for(j=0;j<6;j++){
 
 
@@ -6153,103 +1767,6 @@ if(mu > 0.0){				//**************************************************
 //				FSx[6*i+j] = -mu*(rij-1.0)*(deltaX/rij);
 //				FSy[6*i+j] = -mu*(rij-1.0)*(deltaY/rij);
 
-//***************************************************************************
-//				for (k=0;k<num_center;k++){
-//					row = (int)loc_center[k]/L;
-
-//					if (row%2 == 0){
-
-//						if ((i == loc_center[k]) || (connect[i][j] == loc_center[k])){
-//							delta_bond_len = rij-rlen;
-//						}
-
-						// else if ((i == loc_center[k] - 1) && (j == 2)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - 1) && (j == 4)){
-						// 	delta_bond_len = rij-rlen;
-						// }	
-						// else if ((i == loc_center[k] + 1) && (j == 1)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + 1) && (j == 5)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-
-						// else if ((i == loc_center[k] - L) && (j == 5)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L) && (j == 3)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L + 1) && (j == 0)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L + 1) && (j == 4)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L + 1) && (j == 2)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L + 1) && (j == 0)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L) && (j == 3)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L) && (j == 1)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-
-//					}
-
-//					else{
-
-//						if ((i == loc_center[k]) || (connect[i][j] == loc_center[k])){
-//							delta_bond_len = rij-rlen;
-//						}
-
-						// else if ((i == loc_center[k] - 1) && (j == 2)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - 1) && (j == 4)){
-						// 	delta_bond_len = rij-rlen;
-						// }	
-						// else if ((i == loc_center[k] + 1) && (j == 1)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + 1) && (j == 5)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-
-						// else if ((i == loc_center[k] - L - 1) && (j == 5)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L - 1) && (j == 3)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L) && (j == 0)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] - L) && (j == 4)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L) && (j == 2)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L) && (j == 0)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L - 1) && (j == 3)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-						// else if ((i == loc_center[k] + L - 1) && (j == 1)){
-						// 	delta_bond_len = rij-rlen;
-						// }
-
-//					}
-//				}
-//***************************************************************************
 				FSx[6*i+j] = -mu*(delta_bond_len)*(deltaX/rij);
 				FSy[6*i+j] = -mu*(delta_bond_len)*(deltaY/rij);
 
@@ -6259,114 +1776,7 @@ if(mu > 0.0){				//**************************************************
 //				FSx[6*i+j] = -mu*(rij-1.0)*(deltaX/rij);
 //				FSy[6*i+j] = -mu*(rij-1.0)*(deltaY/rij);
 
-//				printf("And rij = %f\n",rij);
-//				printf("\n");			
-			
-				
-
 //				FStot[i][j]=mu*(rij-1.0);
-
-// different contraction and extension mu applied here:
-/*
-//				for (jj=0;jj<(num_center);jj++)   // previous code used to make bonds connected to centers of dipoles non-bucklable
-				for (jj=0;jj<(num_node);jj++)   // new: all bonds conncected to all dipole nodes are non-bucklable
-				{
-					if (rij >= 1.0){					
-						FSx[6*i+j] = -mu*(rij-1.0)*(deltaX/rij);
-						FSy[6*i+j] = -mu*(rij-1.0)*(deltaY/rij);
-					}
-					else if ((rij < 1.0) && ((i == dip_node[jj]) || (connect[i][j] == dip_node[jj])) ){
-//					else if ((rij < 1.0) && ((i == loc_center[jj]) || (connect[i][j] == loc_center[jj])) ){
-//					else if ((rij < 1.0) && ((i == 2016) || (connect[i][j] == 2016)) ){
-//						printf("\n In dfunc  i:  %d  connect[i:%d][j:%d] =  %d ", i, i, j, connect[i][j]);
-//						printf("rij: %0.7f",rij);
-						FSx[6*i+j] = -mu*(rij-1.0)*(deltaX/rij);
-						FSy[6*i+j] = -mu*(rij-1.0)*(deltaY/rij);
-//						printf("FSx = %f     -Mu = %f", FSx[6*i+j], -mu);										
-//						printf("FSy = %f     -Mu = %f", FSy[6*i+j], -mu);										
-					}
-					else {
-//						if (i==2016 && rij< 1.0) printf("It should not be here");
-						FSx[6*i+j] = -mu_c*(rij-1.0)*(deltaX/rij);
-						FSy[6*i+j] = -mu_c*(rij-1.0)*(deltaY/rij);					
-					}
-				}
-
-*/
-
-//				dip_true = 0;    // flag for checking if we are at a dipole node
-//				for (jj=0;jj<(num_dip);jj++){
-//					if ( (i == dip_node[jj]) || (connect[i][j] == dip_node[jj]) ) {
-//						dip_true = 1;
-//						printf("\n %d",dip_node[jj]);
-//						printf("\n ######test# i: %d     j: %d      connect[i][j]: %d ", i, j, connect[i][j]);
-//					}
-//				}
-
-
-/*
-				dip_true = 0;    // flag for checking if we are at a dipole node
-				if ( (i == 2016) || (i == 2017) || (i == 2015) || (i == 1951) || (i == 1952) || (i == 2080) || (i == 2079) ){
-						dip_true = 1;
-//						printf("\n %d",i);
-						printf("\n ######test# i: %d     j: %d      connect[i][j]: %d ", i, j, connect[i][j]);
-				}
-				else if ( (connect[i][j] == 2016) || (connect[i][j] == 2017) || (connect[i][j] == 2015) || (connect[i][j] == 1951) || (connect[i][j] == 1952) || (connect[i][j] == 2080) || (connect[i][j] == 2079) ){
-						dip_true = 1;
-//						printf("\n ** %d",connect[i][j]);
-						printf("\n ######test# i: %d     j: %d      connect[i][j]: %d ", i, j, connect[i][j]);
-				}
-				else{
-						dip_true = 0;					
-				}
-
-*/
-
-
-/*
-				dip_true = 0;    // flag for checking if we are at a dipole node
-				for (jj=0;jj<(num_dip_unique);jj++){
-					if ( (i == dip_node_unique[jj]) || (connect[i][j] == dip_node_unique[jj]) ) {
-						dip_true = 1;
-//						printf("\n %d ",i);
-						printf("\n ######test# i: %d     j: %d      connect[i][j]: %d ", i, j, connect[i][j]);
-						break;
-					}
-					else{
-						dip_true = 0;
-					}
-				}
-*/
-/*
-				if (dip_true == 1){
-					if (rij >= 1.0){
-						FSx[6*i+j] = -mu*(rij-1.0)*(deltaX/rij);
-						FSy[6*i+j] = -mu*(rij-1.0)*(deltaY/rij);
-						mu_flag = 0;
-					}
-					else if (rij < 1.0){
-						FSx[6*i+j] = -mu*(rij-1.0)*(deltaX/rij);
-						FSy[6*i+j] = -mu*(rij-1.0)*(deltaY/rij);
-						mu_flag = 1;
-					}
-				}
-				else{
-					if (rij >= 1.0){
-						FSx[6*i+j] = -mu*(rij-1.0)*(deltaX/rij);
-						FSy[6*i+j] = -mu*(rij-1.0)*(deltaY/rij);
-						mu_flag = 0;
-					}
-					else if (rij < 1.0){
-						FSx[6*i+j] = -mu_c*(rij-1.0)*(deltaX/rij);
-						FSy[6*i+j] = -mu_c*(rij-1.0)*(deltaY/rij);					
-						mu_flag = 2;
-					}
-				}
-*/
-
-//				printf("\n");				
-//				printf("for site %d connected to site %d, FStot[%d][%d]=%f\n",i,connect[i][j],i,j,FStot[i][j] );
-//				printf("and FSx and FSy are %f %f\n",FSx[i][j],FSy[i][j]);
 				
 			}
 		}
@@ -6415,10 +1825,10 @@ if(kappa1 > 0.0){
 			// original commented
 // 			if(bone==1 && btwo==1 && arp1==1 ){//Triplet jik //&& j>0 && j<3)//ANISO-exclude all spings except the one between 1 and 2)	  
  			if(bone==1 && btwo==1 ){	  
-DfdX=DfdY=0.0;	
-delxij=delyij=0.0;				
-delxik=delyik=0.0;
-rij=rik=0.0;	
+				DfdX=DfdY=0.0;	
+				delxij=delyij=0.0;				
+				delxik=delyik=0.0;
+				rij=rik=0.0;	
 //				&&&&&&&&&&&&&&&& 1st Bond &&&&&&&&&&&&&&&&&			  	
 //				&&&&&&&&&&&&&&&&&& BOND ij &&&&&&&&&&&&&&&&&
 
@@ -6474,10 +1884,11 @@ rij=rik=0.0;
 
 //				&&&&&&&&&&&&&&&& 1st Bond &&&&&&&&&&&&&&&&&&		
 //				&&&&&&&&&&&&&&&&&& BOND ij &&&&&&&&&&&&&&&&&
-DfdX=DfdY=0.0;	
-delxij=delyij=0.0;				
-delxjk=delyjk=0.0;
-rij=rjk=0.0;				
+				DfdX=DfdY=0.0;	
+				delxij=delyij=0.0;				
+				delxjk=delyjk=0.0;
+				rij=rjk=0.0;	
+
 				delxij = (dx[i]-(dx[ tempcon1 ]));	
 				delxij = delxij-( rint(delxij/L)*L );
 
@@ -6526,10 +1937,10 @@ rij=rjk=0.0;
 
 			//if(btwo==1 && bthree==1 && arp3==1){ // Triplet jki
 			if(btwo==1 && bthree==1){ // Triplet jki
-DfdX=DfdY=0.0;
-delxik=delyik=0.0;
-delxjk=delyjk=0.0;
-rik=rjk=0.0;
+				DfdX=DfdY=0.0;
+				delxik=delyik=0.0;
+				delxjk=delyjk=0.0;
+				rik=rjk=0.0;
 
 //				&&&&&&&&&&&&&&&& 1st Bond &&&&&&&&&&&&&&&&&&		
 //				&&&&&&&&&&&&&&&&&& BOND ik &&&&&&&&&&&&&&&&&
@@ -6596,11 +2007,7 @@ if(kappa2 > 0.0){
 			btwo=occupation[i*6+(j+3)%6];  
 			bthree=occupation[connect[i][j]*6+j];
 			bfour=occupation[connect[i][(j+3)%6]*6+(j+3)%6];
-
-			if (i < 2){
-//				printf("\n connect[%d][%d]*6+j = %d other: %d \n", i, j, connect[i][j]*6+j, connect[i][(j+3)%6]*6+(j+3)%6);
-			}
-		
+	
 			fjik=0.0;
 			DfdX=0.0;
 			DfdY=0.0;
@@ -6626,9 +2033,6 @@ if(kappa2 > 0.0){
 //				FILAx[3*i+j]=FILAy[3*i+j]=0.0;
 //			}else 
 			if(bone==1 && btwo==1){  
-//				if(occupation[i*6+j]==1 && occupation[i*6+(j+3)%6]==1){
-//			printf("B1 & B2 i=%d j=%d k=%d %d %d\n",i,connect[i][j],connect[i][(j+3)%6],occupation[i*6+j],occupation[i*6+(j+3)%6]);
-//				}
 //				&&&&&&&&&&&&&&&& 1st Bond &&&&&&&&&&&&&&&&&				  	
 
 				delxij = -(dx[i]-(dx[ connect[i][j] ]));	
@@ -6638,8 +2042,7 @@ if(kappa2 > 0.0){
 //				delyij = delyij-( rint(delyij/(L*sin(THETA)) )*L*sin(THETA) );
 
 				rij = sqrt( pow(delxij,2)+pow(delyij,2) );
-//				printf("Rij=%f for sites %d and %d\n",rij,i,connect[i][j]);
-//				printf("Bond=%d\n",j);
+
 //				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
 //				&&&&&&&&&&&&&&&& 2nd Bond &&&&&&&&&&&&&&&&&
 
@@ -6650,8 +2053,7 @@ if(kappa2 > 0.0){
 //				delyik = delyik-( rint(delyik/(L*sin(THETA)) )*L*sin(THETA) );
 
 				rik = sqrt( pow(delxik,2)+pow(delyik,2) );
-//				printf("Rik=%f for sites %d and %d\n",Rik,i,connect[i][MOD(j+3,6)]);
-//				printf("Bond=%d\n",(j+3)%6);
+
 //				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
 
 
@@ -6670,16 +2072,9 @@ if(kappa2 > 0.0){
 					FILAx[3*i+j]=FILAx[3*i+j]+kappa2*((fjik)/( sqrt(1-pow(fjik,2)) ))*DfdX;
 					FILAy[3*i+j]=FILAy[3*i+j]+kappa2*((fjik)/( sqrt(1-pow(fjik,2)) ))*DfdY;
 				}
-//				printf("THETAjik=%f\n",THETAjik*180/M_PI);
-//				printf("\n");				
-
-//				printf("FILAx=%f and FILAy=%f\n",FILAx[i][j],FILAy[i][j]);
 			}
 //			}else 
 			if(bone==1 && bthree==1){// && btwo != 1){ 
-//				if(occupation[i*6+j]==1 && occupation[connect[i][j]*6+j]==1){
-//	printf("B1 & B3 i=%d j=%d m=%d %d %d\n",i,connect[i][j],connect[connect[i][j]][j],occupation[i*6+j],occupation[connect[i][j]*6+j]);
-//				}
 				DfdX=0.0;
 				DfdY=0.0;
 				delxij=delyij=delxmj=delymj=0.0;
@@ -6696,8 +2091,7 @@ if(kappa2 > 0.0){
 //				delyij = delyij-( rint(delyij/(L*sin(THETA)) )*L*sin(THETA) );
 
 				rij = sqrt( pow(delxij,2)+pow(delyij,2) );
-//				printf("Rij=%f for sites %d and %d\n",Rij,i,connect[i][j]);
-//				printf("Bond=%d\n",j);
+
 //				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
 //				&&&&&&&&&&&&&&&& 2nd Bond jk &&&&&&&&&&&&&&&&&
 
@@ -6708,10 +2102,8 @@ if(kappa2 > 0.0){
 //				delymj = delymj-( rint(delymj/(L*sin(THETA)) )*L*sin(THETA) );
 
 				rmj = sqrt( pow(delxmj,2)+pow(delymj,2) );
-//				printf("Rik=%f for sites %d and %d\n",Rik,i,connect[i][MOD(j+3,6)]);
-//				printf("Bond=%d\n",(j+3)%6);
-//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
 
+//				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
 
 				CROSSmji=delxij*delymj-delyij*delxmj;
 				fmji=sqrt(pow(CROSSmji,2))/(rij*rmj);
@@ -6733,9 +2125,6 @@ if(kappa2 > 0.0){
 			}
 //			}else 
 			if(btwo==1 && bfour==1){// && bone !=1){  	 
-//				if( occupation[i*6+(j+3)%6]==1 && occupation[connect[i][(j+3)%6]*6+(j+3)%6]==1 ){
-//printf("B2 & B4 i=%d k=%d l=%d %d %d\n",i,connect[i][(j+3)%6],connect[connect[i][(j+3)%6]][(j+3)%6],occupation[i*6+(j+3)%6],occupation[connect[i][(j+3)%6]*6+(j+3)%6]);
-//				}
 
 				DfdX=0.0;
 				DfdY=0.0;
@@ -6753,8 +2142,7 @@ if(kappa2 > 0.0){
 //				delyik = delyik-( rint(delyik/(L*sin(THETA)) )*L*sin(THETA) );
 
 				rik = sqrt( pow(delxik,2)+pow(delyik,2) );
-//				printf("Rij=%f for sites %d and %d\n",Rij,i,connect[i][j]);
-//				printf("Bond=%d\n",j);
+
 //				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
 //				&&&&&&&&&&&&&&&& 2nd Bond jk &&&&&&&&&&&&&&&&&
 
@@ -6765,8 +2153,7 @@ if(kappa2 > 0.0){
 //				delylk = delylk-( rint(delylk/(L*sin(THETA)) )*L*sin(THETA) );
 
 				rlk = sqrt( pow(delxlk,2)+pow(delylk,2) );
-//				printf("Rik=%f for sites %d and %d\n",Rik,i,connect[i][MOD(j+3,6)]);
-//				printf("Bond=%d\n",(j+3)%6);
+
 //				&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&		
 
 
@@ -6777,7 +2164,7 @@ if(kappa2 > 0.0){
 				if(fabs(CROSSlki) > 0.0){
 					DfdX=-delylk*CROSSlki/(fabs(CROSSlki)*rik*rlk)-delxik*flki/(pow(rik,2));
 					DfdY=delxlk*CROSSlki/(fabs(CROSSlki)*rik*rlk)-delyik*flki/(pow(rik,2));
-//printf("dx=%f dy=%f\n",DfdX,DfdY);
+
 //					FILAx[3*i+j]=FILAx[3*i+j]+kappa2*(THETAlki)/( sqrt(1-pow(flki,2)) )*DfdX;
 //					FILAy[3*i+j]=FILAy[3*i+j]+kappa2*(THETAlki)/( sqrt(1-pow(flki,2)) )*DfdY;
 
@@ -6794,14 +2181,6 @@ if(kappa2 > 0.0){
 
 	for(i=0;i<N;i++){
 
-		// dip_true = 0;    // flag for checking if we are at a dipole node
-
-		// for (jj=0;jj<(num_dip_unique);jj++){
-		// 	if ( (i == dip_node_unique[jj]) ) {
-		// 		dip_true = 1;
-		// 	}
-		// }
-
 		xi[i+1]=0.0;
 		xi[i+N+1]=0.0;
 
@@ -6810,30 +2189,6 @@ if(kappa2 > 0.0){
 		// fxi is not used in CG method. It is just for analysis of boundary forces
 		fxi[i]=0.0;
 		fxi[i+N]=0.0;
-
-//		if(i>=L && i<N-L){			// commented out by abhinav mar 6 to adapt code for local pinch
-
-/*
-		for(jj=0;jj<num_node;jj++){
-			if(i==dip_node[jj]){
-//				printf("\n i: %d force: %f \n", i, Ff[jj]);
-				if(jj%2 == 0){
-					xcomp = (p[dip_node[jj+1]]-p[dip_node[jj]])/dist_val;
-					ycomp = (p[dip_node[jj+1]+N]-p[dip_node[jj]+N])/dist_val;
-				}
-				else if(jj%2 == 1){
-					xcomp = (p[dip_node[jj]]-p[dip_node[jj-1]])/dist_val;
-					ycomp = (p[dip_node[jj]+N]-p[dip_node[jj-1]+N])/dist_val;
-				}
-				xi[i+1] = xi[i+1] + (-Ff[jj])*xcomp;  // this is not general for any orientation of dipoles; only for dipoles along x axis
-				xi[i+1+N] = xi[i+1+N] + (-Ff[jj])*ycomp;  // this is not general for any orientation of dipoles; only for dipoles along x axis
-//				xi[i+1] = xi[i+1] + (-Ff[jj]);  // this is not general for any orientation of dipoles; only for dipoles along x axis
-//				xi[i+1+N] = xi[i+1+N] + 0;  // this is not general for any orientation of dipoles; only for dipoles along x axis
-//				printf("\n xcomp: %f Ff[jj]*xcomp: %f xi[i+1]: %f \n", xcomp, Ff[jj]*xcomp, xi[i+1]);
-//				printf("\n ycomp: %f Ff[jj]*ycomp: %f xi[i+1+N]: %f \n", ycomp, Ff[jj]*ycomp, xi[i+1+N]);
-			}
-		}
-*/
 
 		// forces only work on rows between the top and bottom rows like in david's original code: this is now for nodes that are not on 
 		// any boundary. ALL boundary nodes are excluded!
@@ -6969,11 +2324,6 @@ int main( int argc, char **argv )
 
 //------------------------------------------------------------------------------------	
 
-	if(extra_dip == 1)
-	{
-		dip_node[2*line_dip] = move_1;
-		dip_node[2*line_dip+1] = move_2;
-	}
 	
 //	num_center = 1;
 
@@ -7129,8 +2479,6 @@ j=0;
 		else if (num_center == 1 && L == 64){
 //			loc_center[i] = 2016;   // for one contraciton point, place it in the center of the box			
 //			loc_center[i] = 2080;   // for one contraciton point, place it in the center of the box			
-//			loc_center[i] = 1952;   // for one contraciton point, place it in the center of the box			
-//			loc_center[i] = 1951;   // for one contraciton point, place it in the center of the box			
 		}
 		else if (num_center == 1 && L == 65){
 			loc_center[i] = 2113;   // for one contraciton point, place it in the center of the box	
@@ -7184,10 +2532,6 @@ j=0;
 	}
 
 
-//	loc_center = 2016;
-	dist_node = 1;
-//	dip_node[0] = 1987;
-//	dip_node[1] = dip_node[0]+node_dist;
 
 	// creating an array of unique nodes
 	int counter_dip = 0;
@@ -7230,12 +2574,6 @@ j=0;
 	}
 
 	printf("\n   -------   \n");
-//	for (i=0;i<(num_node);i++)
-//	for (i=0;i<(18);i++)
-//	{
-//		printf("\n node[%d] = %d \n",i,dip_node[i]);
-//	}
-
 
 	int temp;
 	printf("\n num nodes: %d \n", num_node);
@@ -7249,15 +2587,6 @@ j=0;
 			dip_node[i] = temp;
 		}
 	}
-
-
-
-	
-//	for (i=0;i<(num_node);i++)
-//	for (i=0;i<(18);i++)
-//	{
-//		printf("\n node[%d] = %d \n",i,dip_node[i]);
-//	}
 
 	printf("\n number of dipoles: %d \n", num_dip);
 	printf("\n number of nodes: %d \n", num_node);
@@ -7273,9 +2602,6 @@ for ( i=0; i<N; i++ ) {
 		}
 	}
 } 	
-
-
-
 
 	for (i=0;i<N;i++) { 
 			subpr[i]=pr[i]=x[i];//	Need to reset positions for nex realization
@@ -7322,25 +2648,6 @@ for(k=0;k<=pstep;k++){
 //**************************RANDOMIZE*****************************
 
 //	RANSEED(time(NULL),time(NULL)%5);
-
-
-//Initial bond percolation
-// 	for(i=0;i<N;i++){
-// 		for(j=0;j<3;j++){
-
-// 			if( (rand_double() < prob) ){
-				
-// //				printf("%d %d\n",i,connect[i][j]);
-// 				occupation[i*6+j]=1;
-// 				occupation[connect[i][j]*6+(j+3)%6]=1;
-
-// 			}else{
-// 					occupation[i*6+j]=0;
-// 					occupation[connect[i][j]*6+(j+3)%6]=0;
-// 			}
-
-// 		}
-// 	}			
 
 	int temp_count = 0;  // will be used to cound how big the boundary array should be :0
 	int inner_count = 0;  // counts the number of inner nodes
@@ -7461,15 +2768,6 @@ for(k=0;k<=pstep;k++){
 			}
 
 	}
-
-//putting extra bonds near dipoles to make the system stable
-// 	for(i=0;i<num_node;i++){
-// 		for(j=0;j<6;j++){
-// 			occupation[dip_node[i]*6+j]=1;
-// 			occupation[connect[dip_node[i]][j]*6+(j+3)%6]=1;
-// //			printf("/// '''' %d -- %d -- %d -- %d \n", dip_node[i], j, dip_node[i]*6+j, connect[dip_node[i]][j]*6+(j+3)%6);
-// 		}
-// 	}
 
 // adding bonds to the central dipole node - special node
 for (i=0;i<num_center;i++){
@@ -7659,20 +2957,10 @@ for (i=0;i<num_center;i++){
 //		{
 			occupation[loc_center[i]*6+j]=1;
 	 		occupation[connect[loc_center[i]][j]*6+(j+3)%6]=1;
-
-//	 		coord_num[loc_center[i]] = coord_num[loc_center[i]] + 1;
-//	 		coord_num[connect[loc_center[i]][j]] = coord_num[connect[loc_center[i]][j]] + 1;			
 //		}
  	}
 }
 
-
-for (kk = 0; kk < num_node; kk++){   // cannot remove bonds from force dipole nodes
-	i = dip_node[kk];
-	for (j = 0; j<6; j++){
-//		printf("\n occupation of node %d bond %d is %d \n", i, j, occupation[i*6+j]);
-	}
-}
 
 // finding the coordination number
 	for(i=0;i<N;i++){
@@ -7690,67 +2978,6 @@ int boundary_flag = 0;
 //***************************************************************************************************************************
 // the following code sets each node to have at least a connectivity of 3 or 2
 	srand(1);
-
-// commenting it out because it is pushing us in stretching dominated regime
-/*
-	for(i=0;i<N;i++){
-		row = (int)i/L;
-		column = i%L; 
-//		if ((row == 0) || (row == L-1) || (column == 0) || (column == L-1)){
-		boundary_flag = 0;
-		if ((row == 0) || (row == L-1) || (column == 0) || (column == L-1)){
-			boundary_flag = 1;
-		}
-
-		count = 0;
-		for(j=0;j<3;j++){
-			if (occupation[i*6+j]==1){
-				count = count+1;
-			}
-		}
-		n3 = connect[i][3];
-			if (occupation[n3*6+0]==1){
-				count = count+1;
-			}
-		n4 = connect[i][4];
-			if (occupation[n4*6+1]==1){
-				count = count+1;
-			}
-		n5 = connect[i][5];
-			if (occupation[n5*6+2]==1){
-				count = count+1;
-			}
-
-//		if ((count == 1 || count == 2) && (boundary_flag == 0)){     // not including boundary nodes
-//		if ((count == 1) && (boundary_flag == 0)){     // not including boundary nodes
-		if ((boundary_flag == 0) && (count == 2)){     // not including boundary nodes
-
-			while (count < 3){ 
-			nRandonNumber = (rand()%((5-0+1)))+0;   // 5 is max, 0 is min; +1 needed; form (rand()%(upper-lower+1))+lower
-
-			while((occupation[i*6+nRandonNumber] == 1) || (coord_num[connect[i][nRandonNumber]] == 0))   // dont want to create dangling bonds
-			{
-				nRandonNumber = (rand()%((5-0+1)))+0;   // 5 is max, 0 is min; +1 needed; form (rand()%(upper-lower+1))+lower
-			}
-
-//			occupation[i*6+j]=1;
-//			occupation[connect[i][j]*6+(j+3)%6]=1;
-
-			occupation[i*6+nRandonNumber]=1;
-			occupation[connect[i][nRandonNumber]*6+(nRandonNumber+3)%6]=1;
-
-			coord_num[i] = coord_num[i]+1;
-			coord_num[connect[i][nRandonNumber]] = coord_num[connect[i][nRandonNumber]]+1;
-
-			count = count + 1;
-
-
-		}  // for the main while loop 
-	}   // for the if condition
-
-	}
-
-*/
 
 //***************************************************************************************************************************
 	// removing dangling bonds
@@ -7897,13 +3124,6 @@ int boundary_flag = 0;
 //	for all simulations, pc flag was set to zero.
 // counting total number of bonds
 	int count_bonds = 0;
-	// for(i=0;i<N;i++){
-	// 	for(j=0;j<3;j++){
-	// 		if (occupation[i*6+j]==1){
-	// 			count_bonds = count_bonds+1;
-	// 		}
-	// 	}
-	// }
 
 	// counting the bonds only in outer ring
 	for(i=0;i<N;i++){
@@ -7963,103 +3183,6 @@ int boundary_flag = 0;
 
 	int rand_node, dip_node_flag, rand_bond, bond_flag;
 	int temp_bond_count;
-
-//	if ((count_bonds < pc_num) && (PBOND < 1.0))
-//	{
-//		printf("\n Adding %d bonds \n", (pc_num-count_bonds));
-//		while (count_bonds < pc_num)
-//		{
-//			rand_node = rand()%((N+1)-0);
-//
-//			dx_center = x[center] - x[rand_node];
-//			dy_center = y[center] - y[rand_node];
-//			dist_center = sqrt(dx_center*dx_center + dy_center*dy_center);
-//
-//			// only accept node if it is in outer ring and if its coordination >= 2
-//			if ((dist_center < (r_out-dr_center)) && (dist_center > r_in) && (coord_num[rand_node] > 0)) {
-//
-//
-//
-//				temp_bond_count = 0;
-//				bond_flag = 1;
-//				while(bond_flag == 1){
-//					rand_bond = rand()%((5+1)-0);
-//					// only accept the bond if it does not exist and if the connected node has coordination >= 2
-//					if ((occupation[rand_node*6+rand_bond]==0) && (coord_num[connect[rand_node][rand_bond]] > 0))
-//					{	
-//						occupation[rand_node*6+rand_bond]=1;
-//						occupation[connect[rand_node][rand_bond]*6+(rand_bond+3)%6]=1;						
-//						
-//						coord_num[rand_node] = coord_num[rand_node] + 1;
-//						coord_num[connect[rand_node][rand_bond]] = coord_num[connect[rand_node][rand_bond]] + 1;
-//
-//						bond_flag = -1;
-//						count_bonds = count_bonds+1;
-//					}
-//					// using following to break and find a new node in case it gets stuck
-//					temp_bond_count = temp_bond_count + 1;
-//					if (temp_bond_count == 10){   // 10 so that there is a good chance that all of 0 through 5 have been reached
-//						break;
-//					}
-//
-//				}
-//
-//			}
-//
-//		}
-//
-//		printf("\n Total number of bonds in the outer ring is raised to :::: %d \n", count_bonds);
-//	}
-
-
-// removing other bonds to make sure that we are at the exact pc threshold of 2/3
-//	for all simulations, pc flag was set to zero.
-
-/*	
-	if ((count_bonds > pc_num) && (PBOND < 1.0))
-	{
-		printf("\n Removing %d bonds \n", (count_bonds-pc_num));
-		while ((count_bonds > pc_num))
-		{
-			rand_node = rand()%((N+1)-0);
-
-			dx_center = x[center] - x[rand_node];
-			dy_center = y[center] - y[rand_node];
-			dist_center = sqrt(dx_center*dx_center + dy_center*dy_center);
-
-			// only accept node if it is in outer ring and if its coordination > 3
-			if ((dist_center < (r_out-dr_center)) && (dist_center > r_in) && (coord_num[rand_node] > 3))
-			{	
-				temp_bond_count = 0;
-//				printf("\n random node is: %d with coordination of %d \n", rand_node, coord_num[rand_node]);
-				bond_flag = 1;
-				while(bond_flag == 1){
-					rand_bond = rand()%((5+1)-0);
-					if ((occupation[rand_node*6+rand_bond]==1) && (coord_num[connect[rand_node][rand_bond]] > 3))
-					{	
-						occupation[rand_node*6+rand_bond]=0;
-						occupation[connect[rand_node][rand_bond]*6+(rand_bond+3)%6]=0;						
-						
-						coord_num[rand_node] = coord_num[rand_node] - 1;
-						coord_num[connect[rand_node][rand_bond]] = coord_num[connect[rand_node][rand_bond]] - 1;
-						
-						bond_flag = -1;
-						count_bonds = count_bonds-1;
-//						printf("\n count is reduced to: %d \n", count_bonds);
-					}
-					// using following to break and find a new node in case it gets stuck
-					temp_bond_count = temp_bond_count + 1;
-					if (temp_bond_count == 10){   // 10 so that there is a good chance that all of 0 through 5 have been reached
-						break;
-					}
-
-				}
-			}
-		}
-		printf("\n Total number of bonds in the outer ring is decreased to :::: %d \n", count_bonds);
-	}
-
-*/
 
 //****************************************************************************************
 
@@ -8126,40 +3249,6 @@ int boundary_flag = 0;
 		times=10;  // times = times ; commented by abhinav for testing a smaller output file
 //		times=1;
 
-		if (hyst_flag == 1)
-		{
-			old_times = times;
-			times = 2*times;
-		}
-
-		if (PBOND == 1 && kappa2 == 0 && force_val == 0.01) {
-			dip_move = 0.038372;   // p = 1 k = 0
-		}
-		else if (PBOND == 0.55 && force_val == 0.01) {
-			dip_move = 0.054208;   // for p = 0.55 k = 0
-		}
-		else if (PBOND == 1 && force_val == 0.1 && kappa2 == 0) {
-			dip_move = 0.376517;   // for p = 0.55 k = 0
-		}
-		else if (PBOND == 0.55 && force_val == 0.1) {
-			dip_move = 0.493434;   // for p = 0.55 k = 0
-		}
-
-
-		move_119x = dip_move*cos(THETA)/times;
-		move_119y = dip_move*sin(THETA)/times;		
-		move_120x = -1*dip_move*cos(THETA)/times;
-		move_120y = dip_move*sin(THETA)/times;
-		move_134x = dip_move/times;
-		move_134y = 0/times;
-		move_135x = 0/times;
-		move_135y = 0/times;
-		move_136x = -1*dip_move/times;
-		move_136y = 0/times;
-		move_151x = dip_move*cos(THETA)/times;
-		move_151y = -1*dip_move*sin(THETA)/times;
-		move_152x = -1*dip_move*cos(THETA)/times;
-		move_152y = -1*dip_move*sin(THETA)/times;
 
 		rlen = 1.0;
 		for(t=0;t<times;t++){
@@ -8287,45 +3376,9 @@ int boundary_flag = 0;
 					if (rlen_flag == 1){
 						rlen_arr[i*6+j] = rlen;
 						rlen_arr[connect[i][j]*6 + (j+3)%6] = rlen;
-//						printf("we are at dipole node %d, bond %d and rlen is %f \n", i,j,rlen_arr[i*6+j]);
-//						printf("connected node %d, bond %d and rlen is %f \n", connect[i][j],(j+3)%6,rlen_arr[connect[i][j]*6 + (j+3)%6]);
 					}
 				}
 			}
-
-
-//			printf("\n step1 %d lattice node: %d old pos: %f \n", t, move1, pr[move1]);
-//			printf("\n step1:test::::: %d lattice node: %d old pos: %f \n", t, 2000, pr[2000]);
-
-			if (t==old_times && hyst_flag == 1)
-			{
-				sign_val = -1;
-			}
-
-//			for (i=0;i<N;i++) { 
-//				subpr[i]=pr[i]=x[i];//	Need to reset positions for nex realization
-//				subpr[i+N]=pr[i+N]=y[i];//
-//			}
-
-//			printf("\n step2 %d lattice node: %d new pos: %f \n", t, move1, pr[move1]);
-//			printf("\n step2:test::::: %d lattice node: %d new pos: %f \n", t, 2000, pr[2000]);
-
-
-//			printf("\n t= %d gamma xx= %f gamma xy= %f \n", t, gmmaXX, gmmaXY);
-			gmmaXY=gmmaXY+PERT; //total shear strain 
-			gmmaXX=gmmaXX+PERT;
-//			printf("\n t= %d gamma xx= %f gamma xy= %f \n", t, gmmaXX, gmmaXY);
-			printf("\n num line nodes = %d \n", line_node);
-
-
-			if (ext_flag == 0){ 	// ext_flag: extensile flag
-				fsign_val = 1;
-			}
-			else if (ext_flag == 1){  	// ext_flag: extensile flag
-				fsign_val = -1;				
-			}
-
-
 
 			// calling a function to write all restlengths
 			rlen_output();
@@ -8339,28 +3392,6 @@ int boundary_flag = 0;
 
 			// calling energy minimizer above ---------------------------
 
-
-
-//			for (j=2010;j<2030; j++){
-//				printf("\n subr[%d]: %f ", j, subpr[j]);				/* code */
-//			}
-//
-//			for (j=(2010+4096);j<(2030+4096); j++){
-//				printf("\n subpr[%d]: %f ", j, subpr[j]);				/* code */
-//			}
-//			printf("\n******************************************\n");
-
-
-//			printf("\n 1. subpr[%d]: %f pr[%d]: %f \n", move1, subpr[move1], move1, pr[move1]);
-//			printf("\n 1. subpr[%d]: %f pr[%d]: %f \n", move2, subpr[move2], move2, pr[move2]);
-//			printf("\n 1. subpr[%d]: %f pr[%d]: %f \n", move1+N, subpr[move1+N], move1+N, pr[move1+N]);
-//			printf("\n 1. subpr[%d]: %f pr[%d]: %f \n", move2+N, subpr[move2+N], move2+N, pr[move2+N]);
-
-			// moving all the points
-//			for( i=0;i<(2*N);i++ ){
-//				pr[i]=subpr[i];   // temporarily using L/2-j as 1. Would be 0 in the original global shear code at this location
-//			}
-
 			// clamped:: ALL boundaries not being moved.
 			for( i=0;i<N;i++ ){	
 
@@ -8373,9 +3404,6 @@ int boundary_flag = 0;
 					}
 				}
 
-//				if (i == 119){
-//					printf("\n dip_true at i = %d is :: %d \n", i, dip_true);
-//				}
 		
 //				if(i>=L && i<N-L && i%L != 0 && i%L != L-1 && dip_true == 0 ){								
 //				if(i>=L && i<N-L && i%L != 0 && i%L != L-1){		// fixed rectangular boundary						
@@ -8384,17 +3412,6 @@ int boundary_flag = 0;
 					pr[i+N]=subpr[i+N];
 				}
 			}
-
-//			printf("\n 2. subpr[%d]: %f pr[%d]: %f \n", move1, subpr[move1], move1, pr[move1]);
-//			printf("\n 2. subpr[%d]: %f pr[%d]: %f \n", move2, subpr[move2], move2, pr[move2]);
-//			printf("\n 2. subpr[%d]: %f pr[%d]: %f \n", move1+N, subpr[move1+N], move1+N, pr[move1+N]);
-//			printf("\n 2. subpr[%d]: %f pr[%d]: %f \n", move2+N, subpr[move2+N], move2+N, pr[move2+N]);
-
-
-//			smod=ass/(pow(gmmaXY,2));
-//			printf("%f %f\n",prob,smod);
-
-
 
 //**************************************************************
 //*************WRITING OUTPUT***********************************			
@@ -8408,111 +3425,10 @@ int boundary_flag = 0;
 		bend_force_output();
 //***************************************************************
 //*****************IMPLEMENTAION OF OTHER SUBROUTINES************
-
-	
-		
-		 // Compute the final energy
-		
-//		ass=2*func(subpr)/N;
-//		smod=ass/(pow(gmmaXY,2));
-//		C44[k]=C44[k]+smod;
-//		GAMMA1=GAMMA1+naffine(subpr,gmmaXY);
-//		GAMMA2=GAMMA2+taffine(subpr,gmmaXY);	
-//		gmmaXY=0.0; //need to reset for next realization
-		
-		
-
 	
 	}
-//	LdivLam=(mu/kappa2)*(prob*(2-prob)/(1-prob));
-//	smod=smod/MAXREALi;
-	
-
-//	C44[k]=C44[k]/MAXREALi;
-//	GAMMA1=GAMMA1/MAXREALi;
-//	printf("%f %f\n",prob,smod);
-//	printf("%f %f\n",LdivLam,C44[k]);
-//	fprintf(dq,"%1.5f %1.16f\n",prob,C44[k]);
-//	printf("%1.10f %1.12f\n",prob,C44[k]);
-//	printf("%f %f\n",prob,C44[k]);
-//	fprintf(dq,"%1.10f %1.12f\n",prob,GAMMA1);
-//	fprintf(dq,"%f %f\n",prob,GAMMA2/MAXREALi);
-//	prob=prob+0.3/pstep;
-//	GAMMA1=GAMMA2=0.0;
-
-	
-//	smod=0.0;
 }
 //fclose(dq);
-
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//!!!!!!!!!!!!!! RESTORE THE FULL CORRDINATE SPACE !!!!!!!!!!!!!!
-
-//This loop assembles the final configuration of all the lattice corrdinates
-//frprmn(subpr,pr,connect,occupation,2*N,ftol,&iter,&fret,&func,&dfunc);
-/*
-	for( i=0;i<N;i++ ){	
-		
-		if(i>=L && i<N-L){
-//								
-			pr[i]=subpr[i];
-			pr[i+N]=subpr[i+N];
-		}
-		//if( (subpr[i]-x[i])!=0.0 || (subpr[i+N]-y[i])!=0.0){
-			//printf("for site %d delx=%f dely=%f\n",i,pr[i]-x[i],pr[i+N]-y[i]);
-		//}
-
-	}*/
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-	//printf("DONES!!\n");
-//	printf("\n");
-//	ass=2*func(pr)/N;
-//	dfunc(pr,F);
-/*
-
-	for(i=0;i<N;i++){
-		for(j=0;j<6;j++){
-
-if( !((i<L && connect[i][j]>=N-L) || (i<L && connect[i][(j+1)%6]>=N-L )) || !(i>=N-L && ( connect[i][j] < L || connect[i][(j+1)%6] < L )) ){	
-				if( occupation[i*6+j]==1 && occupation[i*6+(j+1)%6]==1 && occupation[connect[i][j]*6+(j-1)%6]==1){
-					printf("Triforce site=%d site=%d site=%d\n",i,connect[i][j],connect[i][(j+1)%6]);
-					printf( "Fx=%1.8f Fy=%1.8f\n",F[i+1],F[i+N+1]);
-					printf("\n");
-				}
-				if( j<3 && occupation[i*6+j]==1 && occupation[i*6+(j+3)%6]==1){
-					printf("FilaForce site=%d site=%d site=%d\n",i,connect[i][j],connect[i][(j+3)%6]);
-					printf( "Fx=%1.8f Fy=%1.8f\n",F[i+1],F[i+N+1]);
-					printf("\n");
-				}
-			}
-		}
-	}
-*/	
-//	dlattice(pr);
-
-//	for(i=0;i<N;i++){
-//		for(j=0;j<6;j++){
-	
-//			if(occupation[i*6+j]==1 && occupation[connect[i][j]*6+(j+3)%6]==1){
-//				printf("%d %d %d %d\n",i,connect[i][j],occupation[i*6+j],occupation[connect[i][j]*6+(j+3)%6]);
-//			}
-//		}
-
-//	}
-			
-
-//	dangle();
-//	dlattice(pr);//Draw the final confiuration
-//	ass=func(subpr,pr,connect,occupation);//Compute the final energy	
-//	printf("The dishes are done man!\n");
-
-
-//printf("It took me this many %d iters' to find it,\n",iter);
-//printf("minfunc = %1.16f",ass);
-
-
 
 free(Ff);
 free(dip_node);
