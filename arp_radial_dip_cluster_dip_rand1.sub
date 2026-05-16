@@ -1,0 +1,334 @@
+#!/bin/bash
+
+#SBATCH --nodes=1
+#SBATCH --partition franklin
+#SBATCH --ntasks-per-node=1 #
+#SBATCH --output=myjob_%j.stdout #NAME OF THE OUTPT FILE
+#SBATCH --job-name=test #NAME OF YOUR JOB
+#SBATCH --export=ALL
+
+
+#Run desired program here
+module load gcc/12.3.0
+clear
+
+declare -a srand=(
+# [0] = 112
+[0]=113
+[1]=114
+# [2]=115
+[2]=116
+[3]=117
+[4]=118
+[5]=119
+[6]=120
+[7]=121
+[8]=122
+)
+
+declare -a ranseed1=(
+[0]=667720
+)
+
+declare -a ranseed2=(
+[0]=601210
+)
+
+declare -a diff_network1=(
+[0]=111111
+[1]=111111
+[2]=111111
+[3]=111111
+[4]=111111
+[5]=111111
+[6]=111111
+[7]=111111
+[8]=111111
+[9]=111111
+# [10]=222222
+# [11]=222222
+# [12]=222222
+# [13]=222222
+# [14]=222222
+# [15]=222222
+# [16]=222222
+# [17]=222222
+# [18]=222222
+# [19]=222222
+# [20]=333333
+# [21]=333333
+# [22]=333333
+# [23]=333333
+# [24]=333333
+# [25]=333333
+# [26]=333333
+# [27]=333333
+# [28]=333333
+# [29]=333333
+# [30]=444444
+# [31]=444444
+# [32]=444444
+# [33]=444444
+# [34]=444444
+# [35]=444444
+# [36]=444444
+# [37]=444444
+# [38]=444444
+# [39]=444444
+# [40]=555555
+# [41]=555555
+# [42]=555555
+# [43]=555555
+# [44]=555555
+# [45]=555555
+# [46]=555555
+# [47]=555555
+# [48]=555555
+# [49]=555555
+# [50]=666666
+# [51]=666666
+# [52]=666666
+# [53]=666666
+# [54]=666666
+# [55]=666666
+# [56]=666666
+# [57]=666666
+# [58]=666666
+# [59]=666666
+# [60]=777777
+# [61]=777777
+# [62]=777777
+# [63]=777777
+# [64]=777777
+# [65]=777777
+# [66]=777777
+# [67]=777777
+# [68]=777777
+# [69]=777777
+# [70]=888888
+# [71]=888888
+# [72]=888888
+# [73]=888888
+# [74]=888888
+# [75]=888888
+# [76]=888888
+# [77]=888888
+# [78]=888888
+# [79]=888888
+# [80]=999999
+# [81]=999999
+# [82]=999999
+# [83]=999999
+# [84]=999999
+# [85]=999999
+# [86]=999999
+# [87]=999999
+# [88]=999999
+# [89]=999999
+# [90]=900000
+# [91]=900000
+# [92]=900000
+# [93]=900000
+# [94]=900000
+# [95]=900000
+# [96]=900000
+# [97]=900000
+# [98]=900000
+# [99]=900000
+
+)
+
+declare -a diff_network2=(
+[0]=101111
+[1]=111111
+[2]=121111
+[3]=131111
+[4]=141111
+[5]=151111
+[6]=161111
+[7]=171111
+[8]=181111
+[9]=191111
+# [10]=202222
+# [11]=212222
+# [12]=222222
+# [13]=232222
+# [14]=242222
+# [15]=252222
+# [16]=262222
+# [17]=272222
+# [18]=282222
+# [19]=292222
+# [20]=303333
+# [21]=313333
+# [22]=323333
+# [23]=333333
+# [24]=343333
+# [25]=353333
+# [26]=363333
+# [27]=373333
+# [28]=383333
+# [29]=393333
+# [30]=404444
+# [31]=414444
+# [32]=424444
+# [33]=434444
+# [34]=444444
+# [35]=454444
+# [36]=464444
+# [37]=474444
+# [38]=484444
+# [39]=494444
+# [40]=505555
+# [41]=515555
+# [42]=525555
+# [43]=535555
+# [44]=545555
+# [45]=555555
+# [46]=565555
+# [47]=575555
+# [48]=585555
+# [49]=595555
+# [50]=606666
+# [51]=616666
+# [52]=626666
+# [53]=636666
+# [54]=646666
+# [55]=656666
+# [56]=666666
+# [57]=676666
+# [58]=686666
+# [59]=696666
+# [60]=707777
+# [61]=717777
+# [62]=727777
+# [63]=737777
+# [64]=747777
+# [65]=757777
+# [66]=767777
+# [67]=777777
+# [68]=787777
+# [69]=797777
+# [70]=808888
+# [71]=818888
+# [72]=828888
+# [73]=838888
+# [74]=848888
+# [75]=858888
+# [76]=868888
+# [77]=878888
+# [78]=888888
+# [79]=898888
+# [80]=909999
+# [81]=919999
+# [82]=929999
+# [83]=939999
+# [84]=949999
+# [85]=959999
+# [86]=969999
+# [87]=979999
+# [88]=989999
+# [89]=999999
+# [90]=900000
+# [91]=900001
+# [92]=900002
+# [93]=900003
+# [94]=900004
+# [95]=900005
+# [96]=900006
+# [97]=900007
+# [98]=900008
+# [99]=900009
+
+)
+
+declare -a kappa=(
+[0]=1.00E-6
+)
+
+declare -a mu_c=(
+[0]=1.0
+)
+
+declare -a pbond=(
+[0]=0.55
+)
+
+declare -a num_center=(
+[0]=1
+)
+
+for  i in ${!srand[@]}; do
+        echo ${srand[$i]}
+done
+
+for  i in ${!ranseed1[@]}; do
+        echo ${ranseed1[$i]} ${ranseed2[$i]}
+done
+
+for  i in ${!ranseed1[@]}; do
+        echo ${diff_network1[$i]} ${diff_network2[$i]}
+done
+
+for  i in ${!mu_c[@]}; do
+        echo ${mu_c[$i]}
+done
+
+for  i in ${!kappa[@]}; do
+        echo ${kappa[$i]}
+done
+
+for  i in ${!pbond[@]}; do
+        echo ${pbond[$i]}
+done
+
+for  i in ${!num_center[@]}; do
+        echo ${num_center[$i]}
+done
+
+
+# codefname=Movies-Working_2D_Lamel_network_force_cont_dip_bndry_clampled_restlength_circle_inner_fixed_radial_arp_bash_hex.c
+# codefname=Movies-Working_2D_Lamel_network_force_cont_dip_bndry_clampled_restlength_circle_inner_fixed_radial_arp_bash_radial.c
+codefname=Movies-Working_2D_Lamel_network_force_cont_dip_bndry_clampled_restlength_circle_inner_fixed_radial_arp_bash_rand.c
+
+outfname=arp_radial_dip_bash_one
+#outfname="${outfname}_${counter}.txt"
+outfname="${outfname}.txt"
+
+for  s in ${!srand[@]}; do
+	for  m in ${!ranseed1[@]}; do
+		for  n in ${!diff_network1[@]}; do
+			        for  i in ${!kappa[@]}; do
+			                for  j in ${!mu_c[@]}; do
+			                        for  k in ${!pbond[@]}; do
+			                                for  l in ${!num_center[@]}; do
+			                                        echo "srand: ${srand[$s]}"
+			                                        echo "ranseed1: ${ranseed1[$m]}"
+			                                        echo "ranseed2: ${ranseed2[$m]}"
+			                                        echo "diff_network1: ${diff_network1[$n]}"
+			                                        echo "diff_network2: ${diff_network2[$n]}"
+			                                        echo "kappa: ${kappa[$i]}"
+			                                        echo "mu_c: ${mu_c[$j]}"
+			                                        echo "PBOND: ${pbond[$k]}"
+			                                        echo "num_center: ${num_center[$l]}"
+
+			                                        echo "compiling code: $codefname"
+			                                        gcc $codefname -Ofast -o lamelrun_1 -m64 nrutil_jen.c -lm -std=c99
+			                                        echo "compilation complete"
+			                                        echo "executing. outputifile: $outfname"
+			                                        #./lamel $paramfile $counter > $outfname
+			                                        ./lamelrun_1 ${ranseed1[$m]} ${ranseed2[$m]} ${diff_network1[$n]} ${diff_network2[$n]} ${kappa[$i]} ${mu_c[$j]} ${pbond[$k]} ${num_center[$l]} ${srand[$s]} > $outfname
+			                                done
+			                        done
+			                done
+			        done
+		done
+	done
+done
+
+echo "code succefully ran"
+
+
+sleep 1
+spd-say 'The simulation has ended!'
+
