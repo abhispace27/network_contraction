@@ -1,0 +1,252 @@
+#!/bin/bash
+
+#SBATCH --nodes=1
+#SBATCH --partition=franklin
+#SBATCH --ntasks-per-node=1
+#SBATCH --output=radial_dipole_%A_%a.stdout
+#SBATCH --job-name=radial_dipole_array
+#SBATCH --export=ALL
+
+set -euo pipefail
+
+# ============================================================
+# Parameter lists
+# ============================================================
+
+declare -a srand=(
+    113
+    114
+    116
+    117
+    118
+    119
+    120
+    121
+    122
+)
+
+declare -a ranseed1=(
+    667720
+)
+
+declare -a ranseed2=(
+    601210
+)
+
+declare -a diff_network1=(
+    111111
+    111111
+    111111
+    111111
+    111111
+    111111
+    111111
+    111111
+    111111
+    111111
+)
+
+declare -a diff_network2=(
+    101111
+    111111
+    121111
+    131111
+    141111
+    151111
+    161111
+    171111
+    181111
+    191111
+)
+
+declare -a kappa=(
+    1.00E-6
+)
+
+declare -a mu_c=(
+    1.0
+)
+
+declare -a pbond=(
+    0.55
+)
+
+declare -a num_center=(
+    1
+)
+
+# ============================================================
+# Settings
+# ============================================================
+
+max_parallel_jobs=20
+
+codefname="Movies-Working_2D_Lamel_network_force_cont_dip_bndry_clampled_restlength_circle_inner_fixed_radial_arp_bash_radial.c"
+
+output_dir="outputs"
+
+# ============================================================
+# Basic validation
+# ============================================================
+
+if [[ ${#ranseed1[@]} -ne ${#ranseed2[@]} ]]; then
+    echo "ERROR: ranseed1 and ranseed2 arrays have different lengths." >&2
+    exit 1
+fi
+
+if [[ ${#diff_network1[@]} -ne ${#diff_network2[@]} ]]; then
+    echo "ERROR: diff_network1 and diff_network2 arrays have different lengths." >&2
+    exit 1
+fi
+
+# ============================================================
+# Calculate total runs dynamically
+# ============================================================
+
+num_srand=${#srand[@]}
+num_ranseed=${#ranseed1[@]}
+num_network=${#diff_network1[@]}
+num_kappa=${#kappa[@]}
+num_mu=${#mu_c[@]}
+num_pbond=${#pbond[@]}
+num_center=${#num_center[@]}
+
+total_runs=$((num_srand * num_ranseed * num_network * num_kappa * num_mu * num_pbond * num_center))
+last_task_id=$((total_runs - 1))
+
+# ============================================================
+# Self-submit if not already running inside SLURM array
+# ============================================================
+
+if [[ -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
+    echo "Submitting SLURM array job"
+    echo "Total runs:        $total_runs"
+    echo "Array range:       0-${last_task_id}"
+    echo "Max parallel jobs: $max_parallel_jobs"
+    echo
+
+    sbatch --array=0-"${last_task_id}"%"${max_parallel_jobs}" "$0"
+
+    exit 0
+fi
+
+# ============================================================
+# From here onward: one SLURM array task runs one simulation
+# ============================================================
+
+module load gcc/12.3.0
+
+mkdir -p "$output_dir"
+
+if [[ ! -f "$codefname" ]]; then
+    echo "ERROR: C source file not found: $codefname" >&2
+    exit 1
+fi
+
+task_id=${SLURM_ARRAY_TASK_ID}
+
+if (( task_id >= total_runs )); then
+    echo "ERROR: SLURM_ARRAY_TASK_ID=$task_id is outside total_runs=$total_runs" >&2
+    exit 1
+fi
+
+# ============================================================
+# Convert task ID into parameter indices
+# ============================================================
+
+idx=$task_id
+
+l=$(( idx % num_center ))
+idx=$(( idx / num_center ))
+
+k=$(( idx % num_pbond ))
+idx=$(( idx / num_pbond ))
+
+j=$(( idx % num_mu ))
+idx=$(( idx / num_mu ))
+
+i=$(( idx % num_kappa ))
+idx=$(( idx / num_kappa ))
+
+n=$(( idx % num_network ))
+idx=$(( idx / num_network ))
+
+m=$(( idx % num_ranseed ))
+idx=$(( idx / num_ranseed ))
+
+s=$(( idx % num_srand ))
+
+# ============================================================
+# Current task parameters
+# ============================================================
+
+current_srand="${srand[$s]}"
+current_ranseed1="${ranseed1[$m]}"
+current_ranseed2="${ranseed2[$m]}"
+current_diff_network1="${diff_network1[$n]}"
+current_diff_network2="${diff_network2[$n]}"
+current_kappa="${kappa[$i]}"
+current_mu="${mu_c[$j]}"
+current_pbond="${pbond[$k]}"
+current_num_center="${num_center[$l]}"
+
+run_id="task_${task_id}_srand_${current_srand}_rs_${current_ranseed1}_${current_ranseed2}_net_${current_diff_network1}_${current_diff_network2}_kappa_${current_kappa}_mu_${current_mu}_pbond_${current_pbond}_center_${current_num_center}"
+
+outfname="${output_dir}/${run_id}.txt"
+
+exe_name="lamelrun_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
+
+# ============================================================
+# Print task summary
+# ============================================================
+
+echo "============================================================"
+echo "Radial dipole SLURM array task"
+echo "============================================================"
+echo "SLURM job ID:        ${SLURM_JOB_ID}"
+echo "SLURM array job ID:  ${SLURM_ARRAY_JOB_ID}"
+echo "SLURM task ID:       ${SLURM_ARRAY_TASK_ID}"
+echo "Total runs:          $total_runs"
+echo
+echo "srand:               $current_srand"
+echo "ranseed1:            $current_ranseed1"
+echo "ranseed2:            $current_ranseed2"
+echo "diff_network1:       $current_diff_network1"
+echo "diff_network2:       $current_diff_network2"
+echo "kappa:               $current_kappa"
+echo "mu_c:                $current_mu"
+echo "pbond:               $current_pbond"
+echo "num_center:          $current_num_center"
+echo
+echo "Executable:          $exe_name"
+echo "Output file:         $outfname"
+echo "============================================================"
+echo
+
+# ============================================================
+# Compile and run this task
+# ============================================================
+
+echo "Compiling code..."
+
+gcc "$codefname" -Ofast -o "$exe_name" -m64 nrutil_jen.c -lm -std=c99
+
+echo "Compilation complete."
+echo "Running simulation..."
+
+./"$exe_name" \
+    "$current_ranseed1" \
+    "$current_ranseed2" \
+    "$current_diff_network1" \
+    "$current_diff_network2" \
+    "$current_kappa" \
+    "$current_mu" \
+    "$current_pbond" \
+    "$current_num_center" \
+    "$current_srand" \
+    > "$outfname"
+
+echo "Simulation completed successfully."
+echo "Output saved to: $outfname"
+
+rm -f "$exe_name"
