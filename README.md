@@ -21,17 +21,6 @@ The goal of this project is to connect particle/network-level simulation outputs
 - Supports command-line configuration through `argparse`
 - Uses vectorized NumPy operations where possible for efficient analysis
 
-## Technical Skills Demonstrated
-
-- Scientific Python programming
-- NumPy-based vectorized data processing
-- Simulation data analysis
-- Network/lattice geometry analysis
-- Scientific visualization with Matplotlib
-- Curve fitting with SciPy
-- Command-line workflow design
-- Modular code organization using dataclasses and functions
-
 ## Example Use Case
 
 This analysis was developed for studying how localized active stresses propagate through elastic fiber networks. The code can be used to quantify how microscopic force dipoles generate long-range strain, radial stress, and displacement fields in disordered mechanical networks.
