@@ -1,7 +1,7 @@
 # network_contraction
 C code with energy minimization and python codes for analysis and visualizations
 
-# --------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 # Analysis code: network_strain_analysis.y
 
 This project contains a Python analysis pipeline for post-processing elastic-network simulation data. The code analyzes deformation patterns produced by active force dipoles in a disordered lattice network with circular boundaries.
