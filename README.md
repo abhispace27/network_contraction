@@ -69,7 +69,7 @@ The simulations allow controlled variation of network architecture, bending stif
 
 ```text
 network_contraction/
-├── Movies-Working_2D_Lamel_network_force_c...c
+├── contraction_radial.c
 ├── RAN.c
 ├── README.md
 ├── force_stress_analysis.py
