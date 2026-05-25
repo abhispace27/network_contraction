@@ -1,5 +1,13 @@
 # network_contraction
 
+## Publication
+
+This simulation and analysis pipeline supported research that led to a peer-reviewed publication in *Soft Matter*. The code was used to study how localized contractile force dipoles transmit stress, strain, and displacement through disordered elastic networks.
+
+If using this repository for academic purposes, please cite the associated publication:
+> Kumar A, Quint DA, Dasbiswas K, Cooperative effect of local active stresses on the macroscopic contractility of elastic fiber networks, Soft Matter (2026) DOI: https://doi.org/10.1039/D5SM00803D  
+
+# Details
 Simulation and analysis pipeline for studying how localized active force dipoles generate long-range mechanical response in disordered elastic networks.
 
 This repository contains C simulation code, SLURM/HPC automation scripts, and Python analysis/visualization pipelines for elastic-network contraction simulations. The project models a two-dimensional disordered spring network with circular boundaries, introduces contractile dipoles by changing local bond rest lengths, relaxes the network using energy minimization, and post-processes the output to quantify strain, force transmission, stress propagation, displacement fields, and effective dipole moments.
