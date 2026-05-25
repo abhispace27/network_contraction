@@ -69,26 +69,11 @@ The simulations allow controlled variation of network architecture, bending stif
 
 ```text
 network_contraction/
-│
-├── simulation/
-│   └── Movies-Working_2D_Lamel_network_force_cont_dip_... .c
-│       Main C simulation code for elastic-network contraction.
-│
-├── hpc/
-│   └── run_radial_dipole_array.sh
-│       SLURM array-job script for large parameter sweeps.
-│
-├── analysis/
-│   ├── force_stress_analysis_refactored.py
-│   │   Force, stress, dipole-moment, and geometry analysis.
-│   │
-│   └── network_strain_analysis.py
-│       Strain, displacement, inner-boundary stress, and visualization analysis.
-│
-├── outputs/
-│   └── Example simulation output directory, if included.
-│
-├── figures/
-│   └── Example generated plots, if included.
-│
-└── README.md
+├── Movies-Working_2D_Lamel_network_force_c...c
+├── RAN.c
+├── README.md
+├── force_stress_analysis.py
+├── network_strain_analysis.py
+├── nrutil_jen.c
+├── nrutil_jen.h
+└── sim_script.sub
