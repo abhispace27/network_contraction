@@ -203,7 +203,7 @@ void format_kappa2_folder(double val, char *buf, size_t n)
     }
     else if (val == 1.0e-3) {
         snprintf(buf, n, "e-3");
-
+	}
     else if (val == 1.0e-2) {
         snprintf(buf, n, "e-2");
     }
