@@ -81,7 +81,7 @@ declare -a num_center=(
 
 max_parallel_jobs=20
 
-codefname="Movies-Working_2D_Lamel_network_force_cont_dip_bndry_clampled_restlength_circle_inner_fixed_radial_arp_bash_radial.c"
+codefname="contraction_radial.c"
 
 output_dir="outputs"
 
